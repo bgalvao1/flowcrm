@@ -35,6 +35,7 @@ const FORM_INICIAL = {
   nome:'', empresa:'', segmento:'', nicho:'', contato:'',
   whatsapp:'', email:'', status:'prospect',
   status_comercial:'Novo Lead', icp:0, mrr:'0',
+  cnpj:'', canal_vendas:'',
   instagram:'', google_maps:'', website:'',
   social_media:'', meta_ads:'Sem Ads', google_ads:'Sem Ads',
   cidade:'', estado:'', observacoes:'',
@@ -211,6 +212,8 @@ export default function Clientes() {
                 ['Contato', detalhe.contato],
                 ['WhatsApp', detalhe.whatsapp],
                 ['E-mail', detalhe.email],
+                ['CNPJ', detalhe.cnpj],
+                ['Canal de Vendas', detalhe.canal_vendas],
                 ['Segmento', detalhe.segmento],
                 ['Nicho', detalhe.nicho],
                 ['Localização', detalhe.cidade ? `${detalhe.cidade}${detalhe.estado?', '+detalhe.estado:''}` : null],
@@ -323,8 +326,14 @@ export default function Clientes() {
                   <div><label style={lbl}>E-MAIL</label>
                     <input style={inp} value={form.email} onChange={e => setForm({...form, email:e.target.value})} placeholder="email@empresa.com"/>
                   </div>
+                  <div><label style={lbl}>CNPJ</label>
+                    <input style={inp} value={form.cnpj} onChange={e => setForm({...form, cnpj:e.target.value})} placeholder="00.000.000/0000-00"/>
+                  </div>
                   <div><label style={lbl}>MRR (R$)</label>
                     <input style={inp} type="number" value={form.mrr} onChange={e => setForm({...form, mrr:e.target.value})} placeholder="0"/>
+                  </div>
+                  <div><label style={lbl}>CANAL DE VENDAS</label>
+                    <input style={inp} value={form.canal_vendas} onChange={e => setForm({...form, canal_vendas:e.target.value})} placeholder="Ex: E-commerce, Loja física, WhatsApp"/>
                   </div>
                   <div><label style={lbl}>STATUS CRM</label>
                     <select style={inp} value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
