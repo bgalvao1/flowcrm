@@ -13,6 +13,7 @@ import Portal from './pages/Portal.jsx'
 import Dados from './pages/Dados.jsx'
 import Agenda from './pages/Agenda.jsx'
 import Tarefas from './pages/Tarefas.jsx'
+import Gestao from './pages/Gestao.jsx'
 
 function PrivateRoute({ session, children }) {
   if (session === null) return <Navigate to="/login" replace />
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="dados" element={<Dados />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="tarefas" element={<Tarefas />} />
+          <Route path="gestao" element={<Gestao />} />
         </Route>
       </Routes>
     </BrowserRouter>

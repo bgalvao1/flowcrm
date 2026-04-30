@@ -335,3 +335,6 @@ export default function Agenda() {
     </div>
   )
 }
+
+// Exportar componente de Tarefas separado para uso interno
+export { default as AgendaPage } from './Agenda.jsx'
