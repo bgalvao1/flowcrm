@@ -23,7 +23,7 @@ export default function Portal() {
     const { data: cliente } = await supabase
       .from('clientes')
       .select('*')
-      .eq('email', email.trim())
+      .ilike('email', email.trim().toLowerCase())
       .single()
 
     if (cliente) {
@@ -46,7 +46,7 @@ export default function Portal() {
     const { data: colab } = await supabase
       .from('colaboradores')
       .select('*')
-      .eq('portal_email', email.trim())
+      .ilike('portal_email', email.trim().toLowerCase())
       .eq('ativo', true)
       .single()
 
