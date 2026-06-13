@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { pipelineAPI, clientesAPI } from '../lib/supabase.js'
 import { toast } from '../lib/toast.js'
+import { useCompact } from '../components/Layout.jsx'
 
 const ETAPAS = [
   { id: 'prospeccao', label: 'Prospecção', cor: '#8B9A8E' },
@@ -43,6 +44,7 @@ if (!document.getElementById('confetti-style')) {
 }
 
 export default function Pipeline() {
+  const compact = useCompact()
   const [deals, setDeals] = useState([])
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -243,6 +245,7 @@ export default function Pipeline() {
                   draggable
                   onDragStart={e => onDragStart(e, deal)}
                   onDragEnd={onDragEnd}
+                  style={compact ? { padding: '7px 10px', marginBottom: 5 } : {}}
                 >
                   <button className="kb-del" title="Excluir" onClick={() => deletar(deal.id, deal.nome)}>✕</button>
 

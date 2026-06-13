@@ -1,4 +1,5 @@
 import { toast } from '../lib/toast.js'
+import { supabase } from '../lib/supabase.js'
 import React, { useEffect, useState } from 'react'
 import { clientesAPI } from '../lib/supabase.js'
 
@@ -64,6 +65,9 @@ export default function Clientes() {
   const [saving, setSaving]         = useState(false)
   const [abaForm, setAbaForm]       = useState('basico')
   const [detalhe, setDetalhe]       = useState(null)
+  const [abaDetalhe, setAbaDetalhe] = useState('info')
+  const [historico, setHistorico]   = useState([])
+  const [loadingHist, setLoadingHist] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -72,6 +76,28 @@ export default function Clientes() {
     const { data } = await clientesAPI.listar()
     setClientes(data || [])
     setLoading(false)
+  }
+
+  async function abrirDetalhe(c) {
+    setDetalhe(c)
+    setAbaDetalhe('info')
+    loadHistorico(c.id)
+  }
+
+  async function loadHistorico(clienteId) {
+    setLoadingHist(true)
+    const [{ data: deals }, { data: projetos }, { data: propostas }] = await Promise.all([
+      supabase.from('deals').select('id, nome, etapa, valor, criado_em').eq('cliente_id', clienteId).order('criado_em', { ascending: false }),
+      supabase.from('projetos').select('id, nome, etapa, criado_em').eq('cliente_id', clienteId).order('criado_em', { ascending: false }),
+      supabase.from('propostas').select('id, nome, criado_em').eq('cliente_id', clienteId).order('criado_em', { ascending: false }),
+    ])
+    const eventos = [
+      ...(deals || []).map(d => ({ tipo: 'deal', label: d.nome, sub: `Deal · ${d.etapa}`, valor: d.valor, data: d.criado_em, cor: 'var(--sky)' })),
+      ...(projetos || []).map(p => ({ tipo: 'projeto', label: p.nome, sub: `Projeto · ${p.etapa}`, data: p.criado_em, cor: 'var(--amber)' })),
+      ...(propostas || []).map(p => ({ tipo: 'proposta', label: p.nome || 'Proposta gerada', sub: 'Proposta IA', data: p.criado_em, cor: 'var(--accent)' })),
+    ].sort((a, b) => new Date(b.data) - new Date(a.data))
+    setHistorico(eventos)
+    setLoadingHist(false)
   }
 
   async function handleSave() {
@@ -143,7 +169,7 @@ export default function Clientes() {
               <tr><td colSpan={7} style={{ padding:20, color:'var(--text3)', fontSize:12 }}>Nenhum cliente encontrado.</td></tr>
             )}
             {filtrados.map(c => (
-              <tr key={c.id} style={{ borderBottom:'1px solid var(--border)', cursor:'pointer' }} onClick={() => setDetalhe(c)}>
+              <tr key={c.id} style={{ borderBottom:'1px solid var(--border)', cursor:'pointer' }} onClick={() => abrirDetalhe(c)}>
                 <td style={{ padding:'10px 12px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                     <div style={{ width:26, height:26, borderRadius:6, background:c.cor||'#4F7CFF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:600, color:'#fff', flexShrink:0 }}>
@@ -211,7 +237,46 @@ export default function Clientes() {
               </div>
             </div>
 
-            {/* Dados básicos */}
+            {/* Abas Info / Histórico */}
+            <div style={{ display:'flex', gap:2, marginBottom:16, borderBottom:'1px solid var(--border)' }}>
+              {[['info','Informações'],['historico','Histórico']].map(([id, label]) => (
+                <button key={id} onClick={() => setAbaDetalhe(id)}
+                  style={{ background:'none', border:'none', borderBottom: abaDetalhe===id ? '2px solid var(--accent)' : '2px solid transparent', padding:'6px 14px', fontSize:12, fontWeight:500, color: abaDetalhe===id ? 'var(--accent)' : 'var(--text3)', cursor:'pointer', marginBottom:-1, transition:'color 0.15s' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Aba Histórico */}
+            {abaDetalhe === 'historico' && (
+              <div>
+                {loadingHist && <div className="skeleton" style={{ height: 60, marginBottom: 8 }} />}
+                {!loadingHist && historico.length === 0 && (
+                  <div style={{ fontSize:12, color:'var(--text3)', padding:'20px 0', textAlign:'center' }}>
+                    Nenhuma atividade registrada para este cliente ainda.
+                  </div>
+                )}
+                {historico.map((ev, i) => (
+                  <div key={i} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+                    <div style={{ width:28, height:28, borderRadius:7, background:`${ev.cor}22`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <div style={{ width:7, height:7, borderRadius:'50%', background:ev.cor }} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, color:'var(--text1)', fontWeight:500 }}>{ev.label}</div>
+                      <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{ev.sub}</div>
+                    </div>
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      {ev.valor > 0 && <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', fontFamily:'var(--font-mono)' }}>R$ {Number(ev.valor).toLocaleString('pt-BR')}</div>}
+                      <div style={{ fontSize:10, color:'var(--text3)' }}>{new Date(ev.data).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Aba Informações */}
+            {abaDetalhe === 'info' && (
+            <div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
               {[
                 ['Contato', detalhe.contato],
@@ -286,6 +351,8 @@ export default function Clientes() {
                   {detalhe.observacoes}
                 </div>
               </div>
+            )}
+            </div>
             )}
           </div>
         </div>
