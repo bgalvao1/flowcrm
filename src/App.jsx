@@ -23,6 +23,7 @@ import Indicacoes from './pages/Indicacoes.jsx'
 import Precificacao from './pages/Precificacao.jsx'
 import Reativacao from './pages/Reativacao.jsx'
 import GoogleCalendar from './pages/GoogleCalendar.jsx'
+import SaasManager from './pages/SaasManager.jsx'
 
 function PrivateRoute({ session, children }) {
   if (session === null) return <Navigate to="/login" replace />
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="precificacao" element={<Precificacao />} />
           <Route path="reativacao" element={<Reativacao />} />
           <Route path="google-calendar" element={<GoogleCalendar />} />
+          <Route path="saas" element={<SaasManager />} />
         </Route>
       </Routes>
     </BrowserRouter>

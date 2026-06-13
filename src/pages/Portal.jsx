@@ -1,25 +1,241 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, mensagensAPI } from '../lib/supabase.js'
 
+// ── Tela de BLOQUEIO ─────────────────────────────────────
+function TelaBloqueada({ cliente, onLogout }) {
+  const venc = cliente.saas_proximo_vencimento
+    ? new Date(cliente.saas_proximo_vencimento + 'T12:00:00').toLocaleDateString('pt-BR')
+    : null
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0A0D0B', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif' }}>
+      <div style={{ background: '#131A15', border: '1px solid #1E2821', borderRadius: 16, padding: 40, maxWidth: 440, width: '90%', textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, color: '#EEF3EE', marginBottom: 8 }}>
+          Acesso suspenso
+        </div>
+        <div style={{ fontSize: 13, color: '#9CAC9F', marginBottom: 24, lineHeight: 1.6 }}>
+          {cliente.saas_status === 'bloqueado' && venc
+            ? `Seu período de trial encerrou em ${venc}. Para continuar usando o CRM, realize o pagamento da mensalidade.`
+            : 'Seu acesso está temporariamente suspenso. Entre em contato para regularizar.'}
+        </div>
+
+        {/* Box de pagamento */}
+        <div style={{ background: 'rgba(226,192,120,0.08)', border: '1px solid rgba(226,192,120,0.2)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: '#9CAC9F', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Mensalidade</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#E2C078', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>
+            R$ {Number(cliente.saas_mensalidade || 97).toLocaleString('pt-BR')}
+          </div>
+          <div style={{ fontSize: 12, color: '#9CAC9F', marginBottom: 12 }}>Pague via PIX e envie o comprovante</div>
+          <div style={{ background: '#1A231C', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#E2C078', fontWeight: 600, letterSpacing: '0.3px', wordBreak: 'break-all' }}>
+            {cliente.saas_pix_chave || 'bgalvao1@gmail.com'}
+          </div>
+          <button
+            onClick={() => navigator.clipboard.writeText(cliente.saas_pix_chave || 'bgalvao1@gmail.com')}
+            style={{ marginTop: 10, background: 'rgba(226,192,120,0.12)', border: '1px solid rgba(226,192,120,0.3)', borderRadius: 7, padding: '7px 16px', fontSize: 12, color: '#E2C078', cursor: 'pointer' }}>
+            📋 Copiar chave PIX
+          </button>
+        </div>
+
+        <div style={{ fontSize: 12, color: '#5D6C60', marginBottom: 20 }}>
+          Após o pagamento, entre em contato com a Flow Agency via WhatsApp para liberar o acesso. Seus dados estão seguros e não serão perdidos.
+        </div>
+        <button onClick={onLogout} style={{ background: 'none', border: 'none', color: '#5D6C60', fontSize: 12, cursor: 'pointer' }}>Sair</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Pipeline de leads do cliente ──────────────────────────
+const ETAPAS = [
+  { id: 'prospeccao', label: 'Prospecção', cor: '#8B9A8E' },
+  { id: 'qualificacao', label: 'Qualificação', cor: '#5FB7E8' },
+  { id: 'proposta', label: 'Proposta', cor: '#EFB454' },
+  { id: 'fechado', label: 'Fechado', cor: '#3DCE8C' },
+  { id: 'perdido', label: 'Perdido', cor: '#E8645B' },
+]
+
+function MiniCRM({ clienteId }) {
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState({ nome: '', empresa: '', whatsapp: '', servico: '', valor: '', etapa: 'prospeccao', observacao: '' })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { loadLeads() }, [clienteId])
+
+  async function loadLeads() {
+    setLoading(true)
+    const { data } = await supabase.from('cliente_leads').select('*').eq('cliente_id', clienteId).order('criado_em', { ascending: false })
+    setLeads(data || [])
+    setLoading(false)
+  }
+
+  async function salvar() {
+    if (!form.nome) return
+    setSaving(true)
+    await supabase.from('cliente_leads').insert({ ...form, cliente_id: clienteId, valor: parseFloat(form.valor) || 0 })
+    setSaving(false)
+    setModal(false)
+    setForm({ nome: '', empresa: '', whatsapp: '', servico: '', valor: '', etapa: 'prospeccao', observacao: '' })
+    await loadLeads()
+  }
+
+  async function moverEtapa(id, etapa) {
+    setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
+    await supabase.from('cliente_leads').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
+  }
+
+  async function deletar(id) {
+    if (!confirm('Excluir este lead?')) return
+    setLeads(ls => ls.filter(l => l.id !== id))
+    await supabase.from('cliente_leads').delete().eq('id', id)
+  }
+
+  const inp = { width: '100%', background: '#1A231C', border: '1px solid #2B382F', borderRadius: 7, padding: '8px 12px', color: '#EEF3EE', fontSize: 12, outline: 'none', fontFamily: 'DM Sans, sans-serif', marginBottom: 10 }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700, color: '#EEF3EE' }}>Meus Leads</div>
+          <div style={{ fontSize: 11, color: '#5D6C60', marginTop: 2 }}>Gerencie seu pipeline de vendas</div>
+        </div>
+        <button onClick={() => setModal(true)}
+          style={{ background: 'linear-gradient(135deg,#E2C078,#D98E4A)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: '#181208', cursor: 'pointer' }}>
+          + Novo Lead
+        </button>
+      </div>
+
+      {/* Totais */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {ETAPAS.map(e => {
+          const n = leads.filter(l => l.etapa === e.id).length
+          const total = leads.filter(l => l.etapa === e.id).reduce((a, l) => a + Number(l.valor || 0), 0)
+          return (
+            <div key={e.id} style={{ background: '#131A15', border: '1px solid #1E2821', borderRadius: 8, padding: '8px 12px', borderTop: `2px solid ${e.cor}`, flex: 1, minWidth: 100 }}>
+              <div style={{ fontSize: 9, color: e.cor, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 3 }}>{e.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#EEF3EE', fontFamily: 'JetBrains Mono, monospace' }}>{n}</div>
+              {total > 0 && <div style={{ fontSize: 9, color: '#5D6C60', marginTop: 1 }}>R$ {total.toLocaleString('pt-BR')}</div>}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Kanban */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+        {ETAPAS.map(etapa => {
+          const col = leads.filter(l => l.etapa === etapa.id)
+          return (
+            <div key={etapa.id} style={{ minWidth: 200, background: '#0E1310', border: '1px solid #1E2821', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: etapa.cor }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: etapa.cor }} />{etapa.label}
+                </div>
+                <span style={{ fontSize: 10, background: '#1A231C', borderRadius: 8, padding: '1px 6px', color: '#5D6C60' }}>{col.length}</span>
+              </div>
+              {loading && <div style={{ height: 60, background: '#1A231C', borderRadius: 7, marginBottom: 6, animation: 'pulse 1.5s ease infinite' }} />}
+              {col.map(lead => (
+                <div key={lead.id} style={{ background: '#131A15', border: '1px solid #2B382F', borderRadius: 8, padding: 10, marginBottom: 7, cursor: 'default' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#EEF3EE', marginBottom: 2, flex: 1 }}>{lead.nome}</div>
+                    <button onClick={() => deletar(lead.id)} style={{ background: 'none', border: 'none', color: '#5D6C60', cursor: 'pointer', fontSize: 11, padding: 0, marginLeft: 4 }}>✕</button>
+                  </div>
+                  {lead.empresa && <div style={{ fontSize: 10, color: '#5D6C60', marginBottom: 4 }}>{lead.empresa}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    {lead.valor > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#3DCE8C', fontFamily: 'JetBrains Mono, monospace' }}>R$ {Number(lead.valor).toLocaleString('pt-BR')}</span>}
+                    {lead.servico && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'rgba(226,192,120,0.12)', color: '#E2C078', fontWeight: 600 }}>{lead.servico}</span>}
+                  </div>
+                  {lead.whatsapp && (
+                    <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                      style={{ fontSize: 10, color: '#3DCE8C', textDecoration: 'none', display: 'block', marginBottom: 6 }}>
+                      💬 {lead.whatsapp}
+                    </a>
+                  )}
+                  {/* Mover etapa */}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {ETAPAS.map(e => (
+                      <button key={e.id} onClick={() => e.id !== lead.etapa && moverEtapa(lead.id, e.id)}
+                        title={`Mover para ${e.label}`}
+                        style={{ width: 14, height: 14, borderRadius: 3, border: 'none', padding: 0, background: e.id === lead.etapa ? e.cor : '#1A231C', cursor: e.id === lead.etapa ? 'default' : 'pointer', transition: 'transform 0.1s' }}
+                        onMouseEnter={ev => { if (e.id !== lead.etapa) ev.currentTarget.style.transform = 'scale(1.3)' }}
+                        onMouseLeave={ev => ev.currentTarget.style.transform = 'scale(1)'}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => { setForm(f => ({...f, etapa: etapa.id})); setModal(true) }}
+                style={{ width: '100%', border: '1px dashed #2B382F', borderRadius: 6, padding: 6, fontSize: 10, color: '#5D6C60', background: 'none', cursor: 'pointer' }}>
+                + Adicionar
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Modal novo lead */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,7,6,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setModal(false) }}>
+          <div style={{ background: '#131A15', border: '1px solid #2B382F', borderRadius: 14, padding: 24, width: 'min(400px, 95vw)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 16, fontWeight: 700, color: '#EEF3EE', marginBottom: 16 }}>Novo Lead</div>
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Nome *</label>
+            <input style={inp} value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} placeholder="Nome do lead" autoFocus />
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Empresa</label>
+            <input style={inp} value={form.empresa} onChange={e => setForm({...form, empresa: e.target.value})} placeholder="Empresa" />
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>WhatsApp</label>
+            <input style={inp} value={form.whatsapp} onChange={e => setForm({...form, whatsapp: e.target.value})} placeholder="(81) 99999-9999" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Serviço</label>
+                <input style={inp} value={form.servico} onChange={e => setForm({...form, servico: e.target.value})} placeholder="Ex: Site" />
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Valor (R$)</label>
+                <input style={inp} type="number" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} placeholder="0" />
+              </div>
+            </div>
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Etapa</label>
+            <select style={inp} value={form.etapa} onChange={e => setForm({...form, etapa: e.target.value})}>
+              {ETAPAS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
+            </select>
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Observação</label>
+            <textarea style={{ ...inp, resize: 'vertical' }} rows={2} value={form.observacao} onChange={e => setForm({...form, observacao: e.target.value})} placeholder="Notas..." />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button onClick={() => setModal(false)} style={{ background: 'none', border: '1px solid #2B382F', borderRadius: 7, padding: '7px 14px', fontSize: 12, color: '#9CAC9F', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={salvar} disabled={!form.nome || saving}
+                style={{ background: 'linear-gradient(135deg,#E2C078,#D98E4A)', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, color: '#181208', cursor: 'pointer', opacity: !form.nome || saving ? 0.6 : 1 }}>
+                {saving ? 'Salvando...' : 'Salvar lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PORTAL PRINCIPAL ──────────────────────────────────────
 export default function Portal() {
-  const [logado, setLogado]       = useState(false)
-  const [email, setEmail]         = useState('')
-  const [senha, setSenha]         = useState('')
-  const [erro, setErro]           = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [pview, setPview]         = useState('inicio')
-  const [perfil, setPerfil]       = useState(null) // { tipo: 'cliente'|'colaborador', dados: {...} }
-  const [projetos, setProjetos]   = useState([])
-  const [msgs, setMsgs]           = useState([])
-  const [novaMsg, setNovaMsg]     = useState('')
-  const [clientes, setClientes]   = useState([])
+  const [logado, setLogado] = useState(false)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [pview, setPview] = useState('crm')
+  const [perfil, setPerfil] = useState(null)
+  const [projetos, setProjetos] = useState([])
+  const [msgs, setMsgs] = useState([])
+  const [novaMsg, setNovaMsg] = useState([])
+  const [clientes, setClientes] = useState([])
 
   async function handleLogin(e) {
     e.preventDefault()
     setErro('')
     setLoading(true)
 
-    // 1. Tentar como CLIENTE (pelo e-mail)
+    // 1. Tentar como CLIENTE com senha SaaS
     const { data: cliente } = await supabase
       .from('clientes')
       .select('*')
@@ -27,14 +243,26 @@ export default function Portal() {
       .single()
 
     if (cliente) {
-      // Carregar projetos do cliente
-      const { data: p } = await supabase
-        .from('projetos')
-        .select('*, tarefas(*), entregas(*)')
-        .eq('cliente_id', cliente.id)
+      // Verifica senha do portal SaaS
+      if (cliente.saas_senha && cliente.saas_senha !== senha) {
+        setErro('Senha incorreta.')
+        setLoading(false)
+        return
+      }
+
+      // Verifica se trial expirou
+      if (cliente.saas_status === 'trial' && cliente.saas_trial_fim) {
+        if (new Date(cliente.saas_trial_fim) < new Date()) {
+          await supabase.from('clientes').update({ saas_status: 'bloqueado', saas_ativo: false }).eq('id', cliente.id)
+          cliente.saas_status = 'bloqueado'
+          cliente.saas_ativo = false
+        }
+      }
+
+      const { data: p } = await supabase.from('projetos').select('*, tarefas(*), entregas(*)').eq('cliente_id', cliente.id)
       const { data: m } = await mensagensAPI.listar(cliente.id)
       mensagensAPI.assinar(cliente.id, msg => setMsgs(prev => [...prev, msg]))
-      setPerfil({ tipo: 'cliente', dados: cliente })
+      setPerfil({ tipo: 'cliente', dados: { ...cliente } })
       setProjetos(p || [])
       setMsgs(m || [])
       setLogado(true)
@@ -42,37 +270,17 @@ export default function Portal() {
       return
     }
 
-    // 2. Tentar como COLABORADOR (pelo portal_email)
-    const { data: colab } = await supabase
-      .from('colaboradores')
-      .select('*')
-      .ilike('portal_email', email.trim().toLowerCase())
-      .eq('ativo', true)
-      .single()
-
+    // 2. Tentar como COLABORADOR
+    const { data: colab } = await supabase.from('colaboradores').select('*').ilike('portal_email', email.trim().toLowerCase()).eq('ativo', true).single()
     if (colab) {
-      // Carregar projetos vinculados ao colaborador
-      const { data: cp } = await supabase
-        .from('colaborador_projetos')
-        .select('projeto_id')
-        .eq('colaborador_id', colab.id)
-
+      const { data: cp } = await supabase.from('colaborador_projetos').select('projeto_id').eq('colaborador_id', colab.id)
       let projetosColab = []
       if (cp && cp.length > 0) {
         const ids = cp.map(x => x.projeto_id)
-        const { data: p } = await supabase
-          .from('projetos')
-          .select('*, clientes(nome, cor, iniciais), tarefas(*)')
-          .in('id', ids)
+        const { data: p } = await supabase.from('projetos').select('*, clientes(nome, cor, iniciais), tarefas(*)').in('id', ids)
         projetosColab = p || []
       }
-
-      // Carregar clientes da agência (colaboradores veem todos)
-      const { data: cl } = await supabase
-        .from('clientes')
-        .select('id, nome, status, mrr, segmento')
-        .order('nome')
-
+      const { data: cl } = await supabase.from('clientes').select('id, nome, status, mrr, segmento').order('nome')
       setPerfil({ tipo: 'colaborador', dados: colab })
       setProjetos(projetosColab)
       setClientes(cl || [])
@@ -81,317 +289,158 @@ export default function Portal() {
       return
     }
 
-    setErro('E-mail não encontrado. Verifique com a agência.')
+    setErro('E-mail não encontrado ou senha incorreta.')
     setLoading(false)
   }
 
   async function enviarMsg() {
-    if (!novaMsg.trim() || perfil?.tipo !== 'cliente') return
+    if (!novaMsg.trim()) return
     await mensagensAPI.enviar(perfil.dados.id, 'cliente', perfil.dados.nome, novaMsg.trim())
     setNovaMsg('')
   }
 
-  const inp = {
-    background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:7,
-    padding:'9px 12px', color:'var(--text1)', fontSize:13, outline:'none',
-    fontFamily:'DM Sans, sans-serif', width:'100%',
+  if (!logado) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0A0D0B', fontFamily: 'DM Sans, sans-serif' }}>
+        <div style={{ background: '#131A15', border: '1px solid #2B382F', borderRadius: 14, padding: '32px 28px', width: 320 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, marginBottom: 2 }}>
+            Flow<span style={{ color: '#E2C078' }}>CRM</span>
+          </div>
+          <div style={{ fontSize: 11, color: '#5D6C60', marginBottom: 24, letterSpacing: '0.5px' }}>PORTAL DO CLIENTE</div>
+          <form onSubmit={handleLogin}>
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.8px', textTransform: 'uppercase' }}>E-mail</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com"
+              style={{ width: '100%', background: '#1A231C', border: '1px solid #2B382F', borderRadius: 7, padding: '9px 12px', color: '#EEF3EE', fontSize: 13, marginBottom: 12, outline: 'none' }} />
+            <label style={{ fontSize: 10, color: '#5D6C60', display: 'block', marginBottom: 4, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Senha</label>
+            <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••"
+              style={{ width: '100%', background: '#1A231C', border: '1px solid #2B382F', borderRadius: 7, padding: '9px 12px', color: '#EEF3EE', fontSize: 13, marginBottom: 16, outline: 'none' }} />
+            {erro && <div style={{ fontSize: 11, color: '#E8645B', marginBottom: 12, background: 'rgba(232,100,91,0.08)', border: '1px solid rgba(232,100,91,0.2)', borderRadius: 6, padding: '7px 10px' }}>{erro}</div>}
+            <button type="submit" disabled={loading}
+              style={{ width: '100%', background: 'linear-gradient(135deg,#E2C078,#D98E4A)', border: 'none', borderRadius: 7, padding: 10, fontSize: 13, fontWeight: 600, color: '#181208', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Entrando...' : 'Acessar portal'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
-  // ── TELA DE LOGIN ───────────────────────────────────────────────
-  if (!logado) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--bg0)' }}>
-      <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:14, padding:'32px 28px', width:340 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:700, background:'linear-gradient(135deg,#4F7CFF,#7B5CFF)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', marginBottom:4 }}>
-          FlowCRM
-        </div>
-        <div style={{ fontSize:12, color:'var(--text3)', marginBottom:24 }}>Portal de Acesso</div>
+  // TELA DE BLOQUEIO para clientes SaaS
+  if (perfil.tipo === 'cliente' && (perfil.dados.saas_status === 'bloqueado' || (!perfil.dados.saas_ativo && perfil.dados.saas_status !== null && perfil.dados.saas_status !== 'inativo'))) {
+    return <TelaBloqueada cliente={perfil.dados} onLogout={() => { setLogado(false); setPerfil(null) }} />
+  }
 
-        <form onSubmit={handleLogin}>
-          <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5 }}>E-MAIL</label>
-          <input style={{ ...inp, marginBottom:12 }} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com.br" required/>
-          <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5 }}>CÓDIGO DE ACESSO</label>
-          <input style={{ ...inp, marginBottom:16 }} type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" required/>
-          {erro && (
-            <div style={{ fontSize:11, color:'var(--red)', marginBottom:12, background:'rgba(255,91,91,0.08)', border:'1px solid rgba(255,91,91,0.2)', borderRadius:6, padding:'8px 12px' }}>
-              {erro}
+  // AVISO de trial expirando (menos de 2 dias)
+  const trialAlerta = perfil.tipo === 'cliente' && perfil.dados.saas_status === 'trial' && perfil.dados.saas_trial_fim
+    ? Math.ceil((new Date(perfil.dados.saas_trial_fim) - new Date()) / (1000 * 60 * 60 * 24))
+    : null
+
+  const isCliente = perfil.tipo === 'cliente'
+  const navItems = isCliente
+    ? ['crm', 'projetos', 'mensagens']
+    : ['inicio', 'projetos', 'clientes']
+  const navLabel = { crm: 'Meus Leads', inicio: 'Início', projetos: 'Projetos', mensagens: 'Mensagens', clientes: 'Clientes', financeiro: 'Financeiro' }
+
+  const C = { bg: '#0A0D0B', bg2: '#131A15', bg3: '#1A231C', border: '#1E2821', border2: '#2B382F', text1: '#EEF3EE', text2: '#9CAC9F', text3: '#5D6C60', accent: '#E2C078' }
+
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'DM Sans, sans-serif', color: C.text1 }}>
+      {/* Topbar */}
+      <div style={{ background: C.bg2, borderBottom: `1px solid ${C.border}`, padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 52 }}>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 16, fontWeight: 700 }}>
+          Flow<span style={{ color: C.accent }}>CRM</span>
+          <span style={{ fontSize: 10, color: C.text3, marginLeft: 8, fontFamily: 'DM Sans, sans-serif', fontWeight: 400 }}>Portal</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Aviso de trial */}
+          {trialAlerta !== null && trialAlerta <= 3 && (
+            <div style={{ fontSize: 11, background: trialAlerta <= 1 ? 'rgba(232,100,91,0.12)' : 'rgba(239,180,84,0.12)', border: `1px solid ${trialAlerta <= 1 ? 'rgba(232,100,91,0.3)' : 'rgba(239,180,84,0.3)'}`, borderRadius: 6, padding: '4px 10px', color: trialAlerta <= 1 ? '#E8645B' : '#EFB454' }}>
+              ⚠️ Trial expira em {trialAlerta <= 0 ? 'hoje' : `${trialAlerta} dia${trialAlerta > 1 ? 's' : ''}`}
             </div>
           )}
-          <button type="submit" disabled={loading}
-            style={{ width:'100%', background:'var(--accent)', border:'none', borderRadius:7, padding:10, fontSize:13, fontWeight:500, color:'#fff', cursor:'pointer', opacity:loading?0.7:1 }}>
-            {loading ? 'Verificando...' : 'Entrar no portal'}
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#E2C078,#D98E4A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#181208' }}>
+            {perfil.dados.nome?.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
+          </div>
+          <span style={{ fontSize: 12, color: C.text2 }}>{perfil.dados.nome || perfil.dados.nome_completo}</span>
+          <button onClick={() => { setLogado(false); setPerfil(null) }} style={{ background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <div style={{ background: C.bg2, borderBottom: `1px solid ${C.border}`, padding: '0 20px', display: 'flex', gap: 4 }}>
+        {navItems.map(n => (
+          <button key={n} onClick={() => setPview(n)}
+            style={{ background: 'none', border: 'none', borderBottom: pview === n ? `2px solid ${C.accent}` : '2px solid transparent', padding: '10px 14px', fontSize: 12, color: pview === n ? C.accent : C.text3, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', marginBottom: -1 }}>
+            {navLabel[n]}
           </button>
-        </form>
-
-        <div style={{ fontSize:11, color:'var(--text3)', textAlign:'center', marginTop:14 }}>
-          Problemas? Fale com a Flow Agency
-        </div>
-
-        {/* Indicador de tipo de acesso */}
-        <div style={{ marginTop:16, display:'flex', gap:6 }}>
-          <div style={{ flex:1, background:'rgba(79,124,255,0.08)', border:'1px solid rgba(79,124,255,0.2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'var(--accent)', fontWeight:500 }}>🏢 Clientes</div>
-            <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Acompanhe seus projetos</div>
-          </div>
-          <div style={{ flex:1, background:'rgba(123,92,255,0.08)', border:'1px solid rgba(123,92,255,0.2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'var(--accent)', fontWeight:500 }}>👥 Colaboradores</div>
-            <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Acesse sua área de trabalho</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const navs = perfil?.tipo === 'cliente'
-    ? ['inicio','projetos','mensagens','financeiro']
-    : ['inicio','projetos','clientes']
-
-  const navLabels = {
-    inicio:'Início', projetos:'Projetos', mensagens:'Mensagens',
-    financeiro:'Financeiro', clientes:'Clientes',
-  }
-
-  const nomeExibido = perfil?.tipo === 'cliente'
-    ? perfil.dados.contato || perfil.dados.nome
-    : perfil?.dados.nome
-
-  // ── PORTAL ──────────────────────────────────────────────────────
-  return (
-    <div style={{ minHeight:'100vh', background:'var(--bg0)', display:'flex', flexDirection:'column' }}>
-      {/* Topbar */}
-      <div style={{ background:'var(--bg1)', borderBottom:'1px solid var(--border)', padding:'0 20px', height:50, display:'flex', alignItems:'center', gap:12 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:700, color:'var(--accent)' }}>FlowCRM</div>
-        <div style={{ width:1, height:16, background:'var(--border2)' }}></div>
-        {/* Badge tipo de usuário */}
-        <div style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background: perfil?.tipo==='colaborador' ? 'rgba(123,92,255,0.15)' : 'rgba(79,124,255,0.15)', color: perfil?.tipo==='colaborador' ? 'var(--accent)' : 'var(--accent)', fontWeight:500 }}>
-          {perfil?.tipo === 'colaborador' ? '👥 Colaborador' : '🏢 Cliente'}
-        </div>
-        <div style={{ fontSize:13, color:'var(--text2)' }}>
-          Olá, <strong style={{ color:'var(--text1)', fontWeight:500 }}>{nomeExibido}</strong>
-        </div>
-        <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
-          {navs.map(n => (
-            <button key={n} onClick={() => setPview(n)}
-              style={{ background:pview===n?'var(--bg3)':'none', border:'none', borderRadius:6, padding:'6px 12px', fontSize:12, color:pview===n?'var(--text1)':'var(--text3)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
-              {navLabels[n]}
-            </button>
-          ))}
-        </div>
-        <button onClick={() => { setLogado(false); setPerfil(null); setEmail(''); setSenha('') }}
-          style={{ background:'none', border:'1px solid var(--border2)', borderRadius:6, padding:'5px 10px', fontSize:11, color:'var(--text3)', cursor:'pointer' }}>
-          Sair
-        </button>
+        ))}
       </div>
 
-      <div style={{ flex:1, padding:'20px', overflowY:'auto', maxWidth:760, margin:'0 auto', width:'100%' }}>
+      {/* Conteúdo */}
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
 
-        {/* ── INÍCIO ─────────────────────────────────────────────── */}
-        {pview === 'inicio' && (
-          <div>
-            <div style={{ marginBottom:18 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, marginBottom:3 }}>
-                Olá, {nomeExibido} 👋
-              </div>
-              <div style={{ fontSize:12, color:'var(--text3)' }}>
-                {perfil?.tipo === 'colaborador'
-                  ? `Bem-vindo à sua área de trabalho — ${perfil.dados.cargo || 'Colaborador'}`
-                  : 'Aqui está o resumo dos seus projetos com a Flow Agency'}
-              </div>
-            </div>
+        {/* Mini-CRM (leads do cliente) */}
+        {pview === 'crm' && isCliente && <MiniCRM clienteId={perfil.dados.id} />}
 
-            {/* Cards de métricas */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:18 }}>
-              {perfil?.tipo === 'cliente' ? [
-                { label:'PROJETOS ATIVOS', value: projetos.filter(p=>p.etapa==='andamento').length, sub:'Em andamento', cor:'var(--accent)' },
-                { label:'TAREFAS CONCLUÍDAS', value: projetos.flatMap(p=>p.tarefas||[]).filter(t=>t.concluida).length, sub:`de ${projetos.flatMap(p=>p.tarefas||[]).length} total`, cor:'var(--green)' },
-                { label:'MENSALIDADE', value:`R$ ${Number(perfil.dados.mrr||0).toLocaleString('pt-BR')}`, sub:'Recorrência mensal', cor:'var(--amber)' },
-              ] : [
-                { label:'PROJETOS VINCULADOS', value: projetos.length, sub:'Total', cor:'var(--accent)' },
-                { label:'CLIENTES DA AGÊNCIA', value: clientes.length, sub:'Cadastrados', cor:'var(--green)' },
-                { label:'CARGO', value: perfil.dados.cargo || '—', sub:'Função', cor:'var(--accent)' },
-              ].map((c,i) => (
-                <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
-                  <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5, letterSpacing:'0.3px' }}>{c.label}</div>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:600, color:c.cor }}>{c.value}</div>
-                  <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{c.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Projetos resumo */}
-            <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16 }}>
-              <div style={{ fontSize:11, color:'var(--text3)', fontWeight:500, letterSpacing:'0.3px', marginBottom:12 }}>
-                {perfil?.tipo === 'colaborador' ? 'PROJETOS ATRIBUÍDOS' : 'SEUS PROJETOS'}
-              </div>
-              {projetos.length === 0 && (
-                <div style={{ fontSize:12, color:'var(--text3)', textAlign:'center', padding:20 }}>
-                  {perfil?.tipo === 'colaborador' ? 'Nenhum projeto atribuído ainda.' : 'Nenhum projeto ainda.'}
-                </div>
-              )}
-              {projetos.map(p => (
-                <div key={p.id} style={{ display:'flex', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)', gap:12 }}>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:12, fontWeight:500, color:'var(--text1)' }}>{p.nome}</div>
-                    <div style={{ fontSize:10, color:'var(--text3)' }}>
-                      {p.servico}
-                      {perfil?.tipo === 'colaborador' && p.clientes && ` · ${p.clientes.nome}`}
-                    </div>
-                  </div>
-                  <div style={{ width:80, height:4, background:'var(--bg4)', borderRadius:2, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${p.progresso||0}%`, background:'var(--accent)', borderRadius:2 }}></div>
-                  </div>
-                  <div style={{ fontSize:11, color:'var(--accent)', minWidth:32, textAlign:'right' }}>{p.progresso||0}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── PROJETOS ───────────────────────────────────────────── */}
+        {/* Projetos */}
         {pview === 'projetos' && (
           <div>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>
-              {perfil?.tipo === 'colaborador' ? 'Projetos Atribuídos' : 'Meus Projetos'}
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
+              {isCliente ? 'Meus Projetos' : 'Projetos'}
             </div>
-            {projetos.length === 0 && (
-              <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:40, textAlign:'center', color:'var(--text3)', fontSize:12 }}>
-                {perfil?.tipo === 'colaborador' ? 'Nenhum projeto atribuído.' : 'Nenhum projeto ainda.'}
-              </div>
-            )}
-            {projetos.map(p => {
-              const totalT = (p.tarefas||[]).length
-              const doneT = (p.tarefas||[]).filter(t=>t.concluida).length
-              return (
-                <div key={p.id} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16, marginBottom:12 }}>
-                  <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
-                    <div>
-                      <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>{p.nome}</div>
-                      <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
-                        {p.servico}
-                        {perfil?.tipo === 'colaborador' && p.clientes && ` · Cliente: ${p.clientes.nome}`}
-                      </div>
-                    </div>
-                    <span style={{ fontSize:10, padding:'3px 8px', borderRadius:4, fontWeight:500,
-                      background:p.etapa==='concluido'?'rgba(34,201,122,0.15)':p.etapa==='revisao'?'rgba(245,166,35,0.15)':'rgba(79,124,255,0.15)',
-                      color:p.etapa==='concluido'?'var(--green)':p.etapa==='revisao'?'var(--amber)':'var(--accent)' }}>
-                      {p.etapa==='backlog'?'Aguardando':p.etapa==='andamento'?'Em andamento':p.etapa==='revisao'?'Em revisão':'Concluído'}
-                    </span>
+            {projetos.length === 0 && <div style={{ fontSize: 12, color: C.text3 }}>Nenhum projeto ainda.</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+              {projetos.map(p => (
+                <div key={p.id} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{p.nome}</div>
+                  {p.clientes && <div style={{ fontSize: 11, color: C.text3, marginBottom: 8 }}>{p.clientes.nome}</div>}
+                  <div style={{ height: 4, background: C.bg3, borderRadius: 2, marginBottom: 6 }}>
+                    <div style={{ height: '100%', width: `${p.progresso || 0}%`, background: 'linear-gradient(90deg,#E2C078,#3DCE8C)', borderRadius: 2, transition: 'width 0.4s' }} />
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:totalT>0?12:0 }}>
-                    <div style={{ flex:1, height:5, background:'var(--bg4)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ height:'100%', width:`${p.progresso||0}%`, background:'var(--accent)', borderRadius:3 }}></div>
-                    </div>
-                    <span style={{ fontSize:12, color:'var(--accent)', fontWeight:500 }}>{p.progresso||0}%</span>
-                  </div>
-                  {totalT > 0 && (
-                    <div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginBottom:6, letterSpacing:'0.3px' }}>TAREFAS ({doneT}/{totalT})</div>
-                      {(p.tarefas||[]).map(t => (
-                        <div key={t.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0', borderBottom:'1px solid var(--border)' }}>
-                          <div style={{ width:12, height:12, borderRadius:3, border:`1px solid ${t.concluida?'var(--green)':'var(--border2)'}`, background:t.concluida?'var(--green)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                            {t.concluida && <span style={{ color:'#fff', fontSize:8 }}>✓</span>}
-                          </div>
-                          <span style={{ fontSize:11, color:t.concluida?'var(--text3)':'var(--text2)', textDecoration:t.concluida?'line-through':'none' }}>{t.titulo}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div style={{ fontSize: 11, color: C.text3 }}>{p.progresso || 0}% concluído</div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
         )}
 
-        {/* ── MENSAGENS (só clientes) ─────────────────────────────── */}
-        {pview === 'mensagens' && perfil?.tipo === 'cliente' && (
-          <div style={{ maxWidth:600 }}>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Mensagens com a Flow Agency</div>
-            <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16, marginBottom:12, minHeight:200, maxHeight:360, overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
-              {msgs.length === 0 && <div style={{ fontSize:12, color:'var(--text3)' }}>Nenhuma mensagem ainda.</div>}
-              {msgs.map((m,i) => (
-                <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', flexDirection:m.remetente==='cliente'?'row-reverse':'row' }}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:m.remetente==='cliente'?'var(--green)':'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:600, color:'#fff', flexShrink:0 }}>
-                    {(m.nome_remetente||'?').split(' ').map(w=>w[0]).join('').slice(0,2)}
-                  </div>
-                  <div style={{ maxWidth:'72%' }}>
-                    <div style={{ background:m.remetente==='cliente'?'rgba(79,124,255,0.1)':'var(--bg3)', border:`1px solid ${m.remetente==='cliente'?'rgba(79,124,255,0.2)':'var(--border)'}`, borderRadius:10, padding:'9px 12px', fontSize:12, color:m.remetente==='cliente'?'var(--text1)':'var(--text2)', lineHeight:1.5 }}>
-                      {m.texto}
-                    </div>
-                    <div style={{ fontSize:10, color:'var(--text3)', marginTop:2, textAlign:m.remetente==='cliente'?'right':'left' }}>
-                      {m.nome_remetente} · {new Date(m.criado_em).toLocaleDateString('pt-BR')}
-                    </div>
+        {/* Mensagens */}
+        {pview === 'mensagens' && isCliente && (
+          <div>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Mensagens</div>
+            <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, maxHeight: 420, overflowY: 'auto', marginBottom: 12 }}>
+              {msgs.length === 0 && <div style={{ fontSize: 12, color: C.text3 }}>Nenhuma mensagem ainda.</div>}
+              {msgs.map((m, i) => (
+                <div key={i} style={{ marginBottom: 12, display: 'flex', flexDirection: m.remetente === 'cliente' ? 'row-reverse' : 'row', gap: 8 }}>
+                  <div style={{ maxWidth: '75%', background: m.remetente === 'cliente' ? 'rgba(226,192,120,0.12)' : C.bg3, border: `1px solid ${m.remetente === 'cliente' ? 'rgba(226,192,120,0.2)' : C.border2}`, borderRadius: 10, padding: '8px 12px' }}>
+                    <div style={{ fontSize: 10, color: C.accent, marginBottom: 3, fontWeight: 600 }}>{m.nome_remetente}</div>
+                    <div style={{ fontSize: 12, color: C.text1 }}>{m.texto}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <input value={novaMsg} onChange={e => setNovaMsg(e.target.value)} onKeyDown={e => e.key==='Enter'&&enviarMsg()}
-                placeholder="Digite sua mensagem..." style={{ flex:1, background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:8, padding:'9px 12px', color:'var(--text1)', fontSize:12, outline:'none' }}/>
-              <button onClick={enviarMsg} style={{ background:'var(--accent)', border:'none', borderRadius:8, padding:'9px 18px', fontSize:12, color:'#fff', cursor:'pointer', fontWeight:500 }}>Enviar</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={novaMsg} onChange={e => setNovaMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviarMsg()} placeholder="Escreva uma mensagem..."
+                style={{ flex: 1, background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '9px 14px', color: C.text1, fontSize: 12, outline: 'none' }} />
+              <button onClick={enviarMsg} style={{ background: 'linear-gradient(135deg,#E2C078,#D98E4A)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, color: '#181208', cursor: 'pointer' }}>Enviar</button>
             </div>
           </div>
         )}
 
-        {/* ── FINANCEIRO (só clientes) ────────────────────────────── */}
-        {pview === 'financeiro' && perfil?.tipo === 'cliente' && (
-          <div style={{ maxWidth:500 }}>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Financeiro</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-              <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
-                <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5 }}>SEGMENTO</div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--accent)' }}>{perfil.dados.segmento || '—'}</div>
-              </div>
-              <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
-                <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5 }}>MENSALIDADE</div>
-                <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:600, color:'var(--green)' }}>R$ {Number(perfil.dados.mrr||0).toLocaleString('pt-BR')}</div>
-              </div>
-            </div>
-            <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16 }}>
-              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.7, marginBottom:12 }}>
-                Para detalhes completos de cobranças, notas fiscais ou dúvidas financeiras, entre em contato com a Flow Agency diretamente pelo chat de mensagens.
-              </div>
-              <button onClick={() => setPview('mensagens')} className="btn btn-primary">
-                Ir para Mensagens
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── CLIENTES (só colaboradores) ─────────────────────────── */}
-        {pview === 'clientes' && perfil?.tipo === 'colaborador' && (
+        {/* Clientes (colaborador) */}
+        {pview === 'clientes' && !isCliente && (
           <div>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Clientes da Agência</div>
-            <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse' }}>
-                <thead>
-                  <tr>
-                    {['Cliente','Segmento','Status','MRR'].map(h => (
-                      <th key={h} style={{ fontSize:10, color:'var(--text3)', textAlign:'left', padding:'8px 12px', borderBottom:'1px solid var(--border)', fontWeight:500 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientes.map(c => (
-                    <tr key={c.id} style={{ borderBottom:'1px solid var(--border)' }}>
-                      <td style={{ padding:'9px 12px', fontSize:12, fontWeight:500, color:'var(--text1)' }}>{c.nome}</td>
-                      <td style={{ padding:'9px 12px', fontSize:11, color:'var(--text2)' }}>{c.segmento||'—'}</td>
-                      <td style={{ padding:'9px 12px' }}>
-                        <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, fontWeight:500,
-                          background:c.status==='ativo'?'rgba(34,201,122,0.15)':'rgba(79,124,255,0.15)',
-                          color:c.status==='ativo'?'var(--green)':'var(--accent)' }}>
-                          {c.status}
-                        </span>
-                      </td>
-                      <td style={{ padding:'9px 12px', fontSize:12, fontWeight:600, color:'var(--green)', fontFamily:'var(--font-display)' }}>
-                        {c.mrr > 0 ? `R$ ${Number(c.mrr).toLocaleString('pt-BR')}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Clientes da Agência</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
+              {clientes.map(c => (
+                <div key={c.id} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: c.cor || '#4F7CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{c.iniciais}</div>
+                  <div><div style={{ fontSize: 12, fontWeight: 500 }}>{c.nome}</div><div style={{ fontSize: 10, color: C.text3 }}>{c.segmento || c.status}</div></div>
+                </div>
+              ))}
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
