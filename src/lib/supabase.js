@@ -19,6 +19,7 @@ export const pipelineAPI = {
   listar: () => supabase.from('deals').select('*, clientes(nome)').order('criado_em', { ascending: false }),
   criar: (d) => supabase.from('deals').insert(d).select().single(),
   moverEtapa: (id, etapa) => supabase.from('deals').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id).select().single(),
+  atualizar: (id, d) => supabase.from('deals').update({ ...d, atualizado_em: new Date().toISOString() }).eq('id', id).select().single(),
   deletar: (id) => supabase.from('deals').delete().eq('id', id),
 }
 

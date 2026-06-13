@@ -9,9 +9,38 @@ const ETAPAS = [
   { id: 'fechado', label: 'Fechado', cor: '#3DCE8C' },
   { id: 'perdido', label: 'Perdido', cor: '#E8645B' },
 ]
-const SERVICOS = ['Tráfego Pago', 'Site', 'Landing Page', 'Agente IA', 'App Mobile', 'SaaS', 'Consultoria', 'Redes Sociais']
+const SERVICOS = ['Todos', 'Tráfego Pago', 'Site', 'Landing Page', 'Agente IA', 'App Mobile', 'SaaS', 'Consultoria', 'Redes Sociais']
 
 const fmtBRL = (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR')}`
+
+// Confete simples ao fechar deal
+function launchConfetti() {
+  const colors = ['#E2C078', '#D98E4A', '#3DCE8C', '#5FB7E8', '#EFB454']
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div')
+    el.style.cssText = `
+      position:fixed; top:${Math.random() * 40}vh; left:${Math.random() * 100}vw;
+      width:8px; height:8px; border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      pointer-events:none; z-index:9999;
+      animation: confetti-fall 1.2s ease-out forwards;
+      animation-delay: ${Math.random() * 0.4}s;
+    `
+    document.body.appendChild(el)
+    setTimeout(() => el.remove(), 1800)
+  }
+}
+
+// Injeta keyframe só uma vez
+if (!document.getElementById('confetti-style')) {
+  const s = document.createElement('style')
+  s.id = 'confetti-style'
+  s.textContent = `@keyframes confetti-fall {
+    from { transform: translateY(0) rotate(0deg); opacity: 1; }
+    to   { transform: translateY(60vh) rotate(720deg); opacity: 0; }
+  }`
+  document.head.appendChild(s)
+}
 
 export default function Pipeline() {
   const [deals, setDeals] = useState([])
@@ -23,6 +52,16 @@ export default function Pipeline() {
   const [dragId, setDragId] = useState(null)
   const [overCol, setOverCol] = useState(null)
   const dragCounter = useRef({})
+
+  // Filtros
+  const [filtroServico, setFiltroServico] = useState('Todos')
+  const [filtroValorMin, setFiltroValorMin] = useState('')
+  const [filtroValorMax, setFiltroValorMax] = useState('')
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
+
+  // Edição inline
+  const [editando, setEditando] = useState(null) // { id, campo }
+  const [editVal, setEditVal] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -45,7 +84,6 @@ export default function Pipeline() {
     await load()
   }
 
-  // Move com update otimista — UI responde na hora, banco confirma depois
   async function mover(id, etapa) {
     const anterior = deals
     const alvo = ETAPAS.find(e => e.id === etapa)
@@ -53,14 +91,15 @@ export default function Pipeline() {
     const { error } = await pipelineAPI.moverEtapa(id, etapa)
     if (error) {
       setDeals(anterior)
-      toast.error('Não foi possível mover — tente de novo')
+      toast.error('Não foi possível mover')
     } else {
-      toast.success(`Movido para ${alvo?.label}`)
+      if (etapa === 'fechado') { launchConfetti(); toast.success('🎉 Deal fechado!') }
+      else toast.success(`Movido para ${alvo?.label}`)
     }
   }
 
   async function deletar(id, nome) {
-    if (!window.confirm(`Excluir o deal "${nome}"? Essa ação não pode ser desfeita.`)) return
+    if (!window.confirm(`Excluir "${nome}"?`)) return
     const anterior = deals
     setDeals(ds => ds.filter(d => d.id !== id))
     const { error } = await pipelineAPI.deletar(id)
@@ -68,21 +107,31 @@ export default function Pipeline() {
     else toast.success('Deal excluído')
   }
 
+  // ── Edição inline ────────────────────────────────────
+  function iniciarEdicao(deal, campo) {
+    setEditando({ id: deal.id, campo })
+    setEditVal(campo === 'valor' ? String(deal.valor) : deal[campo] || '')
+  }
+
+  async function salvarEdicao(deal) {
+    if (!editando) return
+    const { campo } = editando
+    const novoValor = campo === 'valor' ? parseFloat(editVal) || 0 : editVal
+    if (String(novoValor) === String(deal[campo])) { setEditando(null); return }
+    const anterior = deals
+    setDeals(ds => ds.map(d => d.id === deal.id ? { ...d, [campo]: novoValor } : d))
+    setEditando(null)
+    const { error } = await pipelineAPI.atualizar?.(deal.id, { [campo]: novoValor, tag_label: campo === 'servico' ? novoValor : deal.tag_label })
+      ?? { error: null }
+    if (error) { setDeals(anterior); toast.error('Erro ao editar') }
+    else toast.success('Deal atualizado')
+  }
+
   // ── Drag and drop ──────────────────────────────────────
-  function onDragStart(e, deal) {
-    setDragId(deal.id)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', deal.id)
-  }
+  function onDragStart(e, deal) { setDragId(deal.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', deal.id) }
   function onDragEnd() { setDragId(null); setOverCol(null); dragCounter.current = {} }
-  function onDragEnter(etapaId) {
-    dragCounter.current[etapaId] = (dragCounter.current[etapaId] || 0) + 1
-    setOverCol(etapaId)
-  }
-  function onDragLeave(etapaId) {
-    dragCounter.current[etapaId] = (dragCounter.current[etapaId] || 1) - 1
-    if (dragCounter.current[etapaId] <= 0) setOverCol(c => (c === etapaId ? null : c))
-  }
+  function onDragEnter(etapaId) { dragCounter.current[etapaId] = (dragCounter.current[etapaId] || 0) + 1; setOverCol(etapaId) }
+  function onDragLeave(etapaId) { dragCounter.current[etapaId] = (dragCounter.current[etapaId] || 1) - 1; if (dragCounter.current[etapaId] <= 0) setOverCol(c => (c === etapaId ? null : c)) }
   function onDrop(e, etapaId) {
     e.preventDefault()
     const id = e.dataTransfer.getData('text/plain') || dragId
@@ -91,20 +140,68 @@ export default function Pipeline() {
     if (deal && deal.etapa !== etapaId) mover(deal.id, etapaId)
   }
 
+  // ── Filtros ───────────────────────────────────────────
+  const dealsFiltrados = deals.filter(d => {
+    if (filtroServico !== 'Todos' && d.tag_label !== filtroServico && d.servico !== filtroServico) return false
+    if (filtroValorMin && Number(d.valor) < Number(filtroValorMin)) return false
+    if (filtroValorMax && Number(d.valor) > Number(filtroValorMax)) return false
+    return true
+  })
+  const temFiltro = filtroServico !== 'Todos' || filtroValorMin || filtroValorMax
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }} className="fade-up">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }} className="fade-up">
         <div>
           <h1 className="page-title">Pipeline de Vendas</h1>
-          <div className="page-sub">Arraste os cards entre as etapas</div>
+          <div className="page-sub">Arraste os cards · clique para editar inline</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}>+ Novo Deal</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={`btn btn-ghost`}
+            onClick={() => setFiltrosAbertos(f => !f)}
+            style={{ position: 'relative' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 8h6M7 12h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            Filtros
+            {temFiltro && <span style={{ position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
+          </button>
+          <button className="btn btn-primary" onClick={() => setModal(true)}>+ Novo Deal</button>
+        </div>
       </div>
 
-      {/* Totalizadores por etapa */}
+      {/* Painel de filtros */}
+      {filtrosAbertos && (
+        <div className="card fade-up" style={{ marginBottom: 14, padding: '12px 16px', display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <label className="label">Serviço</label>
+            <select className="input" style={{ minWidth: 160 }} value={filtroServico} onChange={e => setFiltroServico(e.target.value)}>
+              {SERVICOS.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Valor mínimo</label>
+            <input className="input num" style={{ width: 130 }} type="number" placeholder="R$ 0" value={filtroValorMin} onChange={e => setFiltroValorMin(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Valor máximo</label>
+            <input className="input num" style={{ width: 130 }} type="number" placeholder="R$ ∞" value={filtroValorMax} onChange={e => setFiltroValorMax(e.target.value)} />
+          </div>
+          {temFiltro && (
+            <button className="btn btn-ghost" onClick={() => { setFiltroServico('Todos'); setFiltroValorMin(''); setFiltroValorMax('') }}>
+              Limpar filtros
+            </button>
+          )}
+          <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text3)' }}>
+            {dealsFiltrados.length} de {deals.length} deals
+          </div>
+        </div>
+      )}
+
+      {/* Totalizadores */}
       <div className="stagger" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {ETAPAS.map(e => {
-          const etapaDeals = deals.filter(d => d.etapa === e.id)
+          const etapaDeals = dealsFiltrados.filter(d => d.etapa === e.id)
           const total = etapaDeals.reduce((a, d) => a + Number(d.valor), 0)
           return (
             <div key={e.id} className="card" style={{ padding: '10px 14px', flex: 1, borderTop: `2px solid ${e.cor}` }}>
@@ -119,7 +216,7 @@ export default function Pipeline() {
       {/* Kanban */}
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8 }}>
         {ETAPAS.map(etapa => {
-          const etapaDeals = deals.filter(d => d.etapa === etapa.id)
+          const etapaDeals = dealsFiltrados.filter(d => d.etapa === etapa.id)
           return (
             <div
               key={etapa.id}
@@ -147,14 +244,54 @@ export default function Pipeline() {
                   onDragStart={e => onDragStart(e, deal)}
                   onDragEnd={onDragEnd}
                 >
-                  <button className="kb-del" title="Excluir deal" onClick={() => deletar(deal.id, deal.nome)}>✕</button>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text1)', marginBottom: 2, paddingRight: 16 }}>{deal.nome}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8 }}>{deal.empresa || deal.clientes?.nome || '—'}</div>
+                  <button className="kb-del" title="Excluir" onClick={() => deletar(deal.id, deal.nome)}>✕</button>
+
+                  {/* Nome — edição inline ao clicar */}
+                  {editando?.id === deal.id && editando.campo === 'nome' ? (
+                    <input
+                      autoFocus
+                      className="input"
+                      style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, padding: '3px 6px' }}
+                      value={editVal}
+                      onChange={e => setEditVal(e.target.value)}
+                      onBlur={() => salvarEdicao(deal)}
+                      onKeyDown={e => { if (e.key === 'Enter') salvarEdicao(deal); if (e.key === 'Escape') setEditando(null) }}
+                    />
+                  ) : (
+                    <div
+                      title="Clique para editar"
+                      style={{ fontSize: 12, fontWeight: 600, color: 'var(--text1)', marginBottom: 2, paddingRight: 16, cursor: 'text' }}
+                      onClick={() => iniciarEdicao(deal, 'nome')}
+                    >{deal.nome}</div>
+                  )}
+
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6 }}>{deal.empresa || deal.clientes?.nome || '—'}</div>
+
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span className="num" style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)' }}>{fmtBRL(deal.valor)}</span>
+                    {/* Valor — edição inline */}
+                    {editando?.id === deal.id && editando.campo === 'valor' ? (
+                      <input
+                        autoFocus
+                        className="input num"
+                        type="number"
+                        style={{ fontSize: 12, fontWeight: 600, width: 100, padding: '3px 6px', color: 'var(--green)' }}
+                        value={editVal}
+                        onChange={e => setEditVal(e.target.value)}
+                        onBlur={() => salvarEdicao(deal)}
+                        onKeyDown={e => { if (e.key === 'Enter') salvarEdicao(deal); if (e.key === 'Escape') setEditando(null) }}
+                      />
+                    ) : (
+                      <span
+                        title="Clique para editar valor"
+                        className="num"
+                        style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', cursor: 'text' }}
+                        onClick={() => iniciarEdicao(deal, 'valor')}
+                      >{fmtBRL(deal.valor)}</span>
+                    )}
                     <span className="badge badge-gold">{deal.tag_label || deal.servico}</span>
                   </div>
-                  {/* Fallback de toque (mobile): pontos das etapas */}
+
+                  {/* Dots de etapa */}
                   <div style={{ display: 'flex', gap: 5 }}>
                     {ETAPAS.map(e => (
                       <button
@@ -213,7 +350,7 @@ export default function Pipeline() {
               <div>
                 <label className="label">Serviço</label>
                 <select className="input" value={form.servico} onChange={e => setForm({ ...form, servico: e.target.value })}>
-                  {SERVICOS.map(s => <option key={s}>{s}</option>)}
+                  {SERVICOS.filter(s => s !== 'Todos').map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
