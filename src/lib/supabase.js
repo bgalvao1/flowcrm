@@ -84,3 +84,72 @@ export const authAPI = {
   getSession: () => supabase.auth.getSession(),
   onAuthChange: (cb) => supabase.auth.onAuthStateChange(cb),
 }
+
+// ── ONBOARDING ────────────────────────────────────────────
+export const onboardingAPI = {
+  listar: () => supabase.from('onboarding').select('*, clientes(nome, cor, iniciais), onboarding_steps(*)').order('criado_em', { ascending: false }),
+  criar: (clienteId, titulo) => supabase.from('onboarding').insert({ cliente_id: clienteId, titulo }).select().single(),
+  addStep: (onboardingId, step) => supabase.from('onboarding_steps').insert({ onboarding_id: onboardingId, ...step }).select().single(),
+  toggleStep: (id, concluido) => supabase.from('onboarding_steps').update({ concluido }).eq('id', id),
+  deleteStep: (id) => supabase.from('onboarding_steps').delete().eq('id', id),
+}
+
+// ── RELATÓRIOS ────────────────────────────────────────────
+export const relatoriosAPI = {
+  listar: () => supabase.from('relatorios').select('*, clientes(nome)').order('ano', { ascending: false }).order('mes', { ascending: false }),
+  criar: (d) => supabase.from('relatorios').insert(d).select().single(),
+  atualizar: (id, d) => supabase.from('relatorios').update(d).eq('id', id),
+}
+
+// ── TIMESHEET ─────────────────────────────────────────────
+export const timesheetAPI = {
+  listar: (mes, ano) => {
+    const ini = `${ano}-${String(mes).padStart(2,'0')}-01`
+    const fim = `${ano}-${String(mes).padStart(2,'0')}-31`
+    return supabase.from('timesheet').select('*, projetos(nome), clientes(nome)').gte('data_registro', ini).lte('data_registro', fim).order('data_registro', { ascending: false })
+  },
+  criar: (d) => supabase.from('timesheet').insert(d).select().single(),
+  deletar: (id) => supabase.from('timesheet').delete().eq('id', id),
+}
+
+// ── KNOWLEDGE BASE ────────────────────────────────────────
+export const knowledgeAPI = {
+  listar: () => supabase.from('knowledge_base').select('*').order('categoria').order('titulo'),
+  criar: (d) => supabase.from('knowledge_base').insert(d).select().single(),
+  atualizar: (id, d) => supabase.from('knowledge_base').update({ ...d, atualizado_em: new Date().toISOString() }).eq('id', id),
+  deletar: (id) => supabase.from('knowledge_base').delete().eq('id', id),
+}
+
+// ── CONTEÚDO EDITORIAL ────────────────────────────────────
+export const conteudoAPI = {
+  listar: () => supabase.from('conteudo').select('*, clientes(nome, cor, iniciais)').order('data_publicacao', { ascending: true }),
+  criar: (d) => supabase.from('conteudo').insert(d).select().single(),
+  moverStatus: (id, status) => supabase.from('conteudo').update({ status }).eq('id', id),
+  deletar: (id) => supabase.from('conteudo').delete().eq('id', id),
+}
+
+// ── INDICAÇÕES ────────────────────────────────────────────
+export const indicacoesAPI = {
+  listar: () => supabase.from('indicacoes').select('*, clientes_indicador:cliente_indicador_id(nome), clientes_indicado:cliente_indicado_id(nome)').order('criado_em', { ascending: false }),
+  criar: (d) => supabase.from('indicacoes').insert(d).select().single(),
+  atualizar: (id, d) => supabase.from('indicacoes').update(d).eq('id', id),
+}
+
+// ── PRECIFICAÇÃO ──────────────────────────────────────────
+export const precificacaoAPI = {
+  listar: () => supabase.from('servicos_preco').select('*').order('categoria').order('nome'),
+  criar: (d) => supabase.from('servicos_preco').insert(d).select().single(),
+  atualizar: (id, d) => supabase.from('servicos_preco').update(d).eq('id', id),
+  deletar: (id) => supabase.from('servicos_preco').delete().eq('id', id),
+}
+
+// ── CAMPANHAS REATIVAÇÃO ──────────────────────────────────
+export const reativacaoAPI = {
+  clientes_inativos: (dias) => {
+    const limite = new Date()
+    limite.setDate(limite.getDate() - dias)
+    return supabase.from('clientes').select('id, nome, cor, iniciais, status, atualizado_em').lt('atualizado_em', limite.toISOString()).eq('status', 'ativo').order('atualizado_em')
+  },
+  campanhas: () => supabase.from('campanhas_reativacao').select('*').order('criado_em', { ascending: false }),
+  criar: (d) => supabase.from('campanhas_reativacao').insert(d).select().single(),
+}

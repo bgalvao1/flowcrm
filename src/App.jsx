@@ -14,6 +14,15 @@ import Dados from './pages/Dados.jsx'
 import Agenda from './pages/Agenda.jsx'
 import Tarefas from './pages/Tarefas.jsx'
 import Gestao from './pages/Gestao.jsx'
+import Onboarding from './pages/Onboarding.jsx'
+import Relatorios from './pages/Relatorios.jsx'
+import Timesheet from './pages/Timesheet.jsx'
+import KnowledgeBase from './pages/KnowledgeBase.jsx'
+import Conteudo from './pages/Conteudo.jsx'
+import Indicacoes from './pages/Indicacoes.jsx'
+import Precificacao from './pages/Precificacao.jsx'
+import Reativacao from './pages/Reativacao.jsx'
+import GoogleCalendar from './pages/GoogleCalendar.jsx'
 
 function PrivateRoute({ session, children }) {
   if (session === null) return <Navigate to="/login" replace />
@@ -50,6 +59,16 @@ export default function App() {
           <Route path="agenda" element={<Agenda />} />
           <Route path="tarefas" element={<Tarefas />} />
           <Route path="gestao" element={<Gestao />} />
+          {/* Novos módulos */}
+          <Route path="onboarding" element={<Onboarding />} />
+          <Route path="relatorios" element={<Relatorios />} />
+          <Route path="timesheet" element={<Timesheet />} />
+          <Route path="knowledge" element={<KnowledgeBase />} />
+          <Route path="conteudo" element={<Conteudo />} />
+          <Route path="indicacoes" element={<Indicacoes />} />
+          <Route path="precificacao" element={<Precificacao />} />
+          <Route path="reativacao" element={<Reativacao />} />
+          <Route path="google-calendar" element={<GoogleCalendar />} />
         </Route>
       </Routes>
     </BrowserRouter>
