@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast.js'
 import React, { useEffect, useState, useRef } from 'react'
 import { supabase, clientesAPI } from '../lib/supabase.js'
 
@@ -150,7 +151,7 @@ export default function Financeiro() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Financeiro</h1>
+          <h1 className="page-title">Financeiro</h1>
           <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>Controle de receitas e despesas</div>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -159,7 +160,7 @@ export default function Financeiro() {
             {anos.map(a => <option key={a}>{a}</option>)}
           </select>
           <button onClick={() => setModal(true)}
-            style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer', whiteSpace:'nowrap' }}>
+            className="btn btn-primary" style={{ whiteSpace:'nowrap' }}>
             + Novo Lançamento
           </button>
         </div>
@@ -177,7 +178,7 @@ export default function Financeiro() {
             <div style={{ fontSize:22 }}>{m.icon}</div>
             <div>
               <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3, letterSpacing:'0.3px' }}>{m.label.toUpperCase()}</div>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:18, fontWeight:700, color:m.cor }}>{m.value}</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:m.cor }}>{m.value}</div>
             </div>
           </div>
         ))}
@@ -200,7 +201,7 @@ export default function Financeiro() {
       {/* Visão Geral */}
       {tab === 'visao' && (
         <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-          <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, marginBottom:16 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, marginBottom:16 }}>
             Receitas vs Despesas por Mês
           </div>
           <canvas ref={canvasRef} style={{ width:'100%', height:180, display:'block' }}></canvas>
@@ -247,7 +248,7 @@ export default function Financeiro() {
                   </td>
                   <td style={{ fontSize:11, color:'var(--text2)', padding:'9px 12px' }}>{l.clientes?.nome || '—'}</td>
                   <td style={{ fontSize:11, color:'var(--text3)', padding:'9px 12px' }}>{MESES[l.mes-1]?.slice(0,3) || '—'}/{l.ano}</td>
-                  <td style={{ padding:'9px 12px', fontFamily:'Syne, sans-serif', fontSize:12, fontWeight:600, color: l.tipo==='receita' ? 'var(--green)' : 'var(--red)' }}>
+                  <td style={{ padding:'9px 12px', fontFamily:'var(--font-display)', fontSize:12, fontWeight:600, color: l.tipo==='receita' ? 'var(--green)' : 'var(--red)' }}>
                     {l.tipo==='receita'?'+':'-'} {fmt(l.valor)}
                   </td>
                   <td style={{ fontSize:11, color:'var(--text3)', padding:'9px 12px' }}>
@@ -284,10 +285,10 @@ export default function Financeiro() {
           {porMes.map((m, i) => (
             <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 14px', textAlign:'center', cursor:'pointer', transition:'all 0.15s' }}
               onClick={() => { setTab('lancamentos'); }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:13, fontWeight:700, color:'var(--text2)', marginBottom:8, letterSpacing:'0.5px' }}>{m.mes}</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:700, color:'var(--text2)', marginBottom:8, letterSpacing:'0.5px' }}>{m.mes}</div>
               <div style={{ fontSize:12, color:'var(--green)', marginBottom:2 }}>+{fmt(m.r)}</div>
               <div style={{ fontSize:12, color:'var(--red)', marginBottom:6 }}>-{fmt(m.d)}</div>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:13, fontWeight:700, color: m.s >= 0 ? 'var(--green)' : 'var(--red)', borderTop:'1px solid var(--border)', paddingTop:6 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:700, color: m.s >= 0 ? 'var(--green)' : 'var(--red)', borderTop:'1px solid var(--border)', paddingTop:6 }}>
                 {fmt(m.s)}
               </div>
             </div>
@@ -297,10 +298,10 @@ export default function Financeiro() {
 
       {/* Modal Novo Lançamento */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:460, maxHeight:'90vh', overflowY:'auto' }}>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600 }}>Novo Lançamento</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600 }}>Novo Lançamento</div>
               <button onClick={() => setModal(false)} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:18 }}>✕</button>
             </div>
 

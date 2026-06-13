@@ -16,20 +16,59 @@ export default function Login() {
   }
 
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--bg0)' }}>
-      <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:14, padding:'32px 28px', width:320 }}>
-        <div style={{ fontFamily:'Syne, sans-serif', fontSize:22, fontWeight:700, background:'linear-gradient(135deg,#4F7CFF,#7B5CFF)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', marginBottom:4 }}>FlowCRM</div>
-        <div style={{ fontSize:12, color:'var(--text3)', marginBottom:24 }}>Agency OS — Acesso restrito</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg0)', position: 'relative', overflow: 'hidden' }}>
+      <div className="flow-line" />
+
+      {/* Fundo decorativo */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(226,192,120,0.04) 0%, transparent 70%)' }} />
+      </div>
+
+      <div className="card" style={{ width: 340, padding: '32px 28px', animation: 'pop-in 0.3s cubic-bezier(0.2,0.9,0.3,1.2) both', position: 'relative', zIndex: 1 }}>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 2 }}>
+            Flow<span style={{ color: 'var(--accent)' }}>CRM</span>
+          </div>
+          <div className="eyebrow">Agency OS — Acesso restrito</div>
+        </div>
+
         <form onSubmit={handleLogin}>
-          <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5, letterSpacing:'0.3px' }}>E-MAIL</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="agencia@flow.com.br" required
-            style={{ width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:7, padding:'9px 12px', color:'var(--text1)', fontSize:13, marginBottom:12, outline:'none' }} />
-          <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5, letterSpacing:'0.3px' }}>SENHA</label>
-          <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="••••••••" required
-            style={{ width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:7, padding:'9px 12px', color:'var(--text1)', fontSize:13, marginBottom:16, outline:'none' }} />
-          {error && <div style={{ fontSize:11, color:'var(--red)', marginBottom:12, background:'rgba(255,91,91,0.08)', border:'1px solid rgba(255,91,91,0.2)', borderRadius:6, padding:'7px 10px' }}>{error}</div>}
-          <button type="submit" disabled={loading} style={{ width:'100%', background:'var(--accent)', border:'none', borderRadius:7, padding:10, fontSize:13, fontWeight:500, color:'#fff', cursor:'pointer', opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Entrando...' : 'Entrar'}
+          <div style={{ marginBottom: 12 }}>
+            <label className="label">E-mail</label>
+            <input
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              type="email"
+              placeholder="agencia@flow.com.br"
+              required
+              className="input"
+            />
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <label className="label">Senha</label>
+            <input
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              type="password"
+              placeholder="••••••••"
+              required
+              className="input"
+            />
+          </div>
+
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 14, background: 'rgba(232,100,91,0.08)', border: '1px solid rgba(232,100,91,0.2)', borderRadius: 7, padding: '8px 12px', animation: 'fade-up 0.2s ease both' }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: 13 }}
+          >
+            {loading ? 'Entrando...' : 'Entrar na plataforma'}
           </button>
         </form>
       </div>

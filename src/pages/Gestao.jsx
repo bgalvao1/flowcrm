@@ -11,7 +11,7 @@ const ABAS = [
 const TIPOS_META = ['Comercial','Operacional','Financeiro','Marketing','Outro']
 const TIPO_META_COR = {
   'Comercial':'var(--accent)', 'Operacional':'var(--amber)',
-  'Financeiro':'var(--green)', 'Marketing':'var(--accent2)', 'Outro':'var(--text3)',
+  'Financeiro':'var(--green)', 'Marketing':'var(--accent)', 'Outro':'var(--text3)',
 }
 const fmt = v => `R$ ${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`
 
@@ -184,17 +184,17 @@ export default function Gestao() {
         <div style={{ display:'flex', alignItems:'center', gap:14 }}>
           <div style={{ width:44, height:44, borderRadius:10, background:'rgba(79,124,255,0.12)', border:'1px solid rgba(79,124,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🛡️</div>
           <div>
-            <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Central de Gestão</h1>
+            <h1 className="page-title">Central de Gestão</h1>
             <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>Gerencie equipe, metas e acompanhe a performance</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:10 }}>
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 16px', textAlign:'center', minWidth:80 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:18, fontWeight:700, color:'var(--accent)' }}>{colaboradores.length}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--accent)' }}>{colaboradores.length}</div>
             <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Colaboradores</div>
           </div>
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 16px', textAlign:'center', minWidth:80 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:18, fontWeight:700, color:'var(--amber)' }}>{metasAtivas}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--amber)' }}>{metasAtivas}</div>
             <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Metas Ativas</div>
           </div>
         </div>
@@ -225,7 +225,7 @@ export default function Gestao() {
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:16 }}>📋</span>
-                <span style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600 }}>Alertas de Projetos</span>
+                <span style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>Alertas de Projetos</span>
               </div>
               <button onClick={loadAll} style={{ background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:6, padding:'5px 10px', fontSize:11, color:'var(--text2)', cursor:'pointer' }}>↻ Atualizar</button>
             </div>
@@ -253,7 +253,7 @@ export default function Gestao() {
 
           {/* Resumo Diário */}
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:20 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, marginBottom:4 }}>Resumo Diário</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, marginBottom:4 }}>Resumo Diário</div>
             <div style={{ fontSize:11, color:'var(--text3)', marginBottom:16 }}>{new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' })}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
               {[
@@ -263,12 +263,12 @@ export default function Gestao() {
                 { label:'Notificações', value: alertasAbertos, cor:'var(--accent)' },
               ].map((m,i) => (
                 <div key={i} style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
-                  <div style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700, color:m.cor }}>{m.value}</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, color:m.cor }}>{m.value}</div>
                   <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{m.label}</div>
                 </div>
               ))}
             </div>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:12, fontWeight:600, marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:600, marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
               ⚠️ Problemas por Colaborador
               {problemasColab.length > 0 && <span style={{ background:'var(--red)', color:'#fff', fontSize:10, borderRadius:'50%', width:18, height:18, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{problemasColab.length}</span>}
             </div>
@@ -289,7 +289,7 @@ export default function Gestao() {
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:16 }}>🎯</span>
-                <span style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600 }}>Metas Ativas</span>
+                <span style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>Metas Ativas</span>
               </div>
               <button onClick={() => setModalMeta(true)} style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'6px 12px', fontSize:11, fontWeight:500, color:'#fff', cursor:'pointer' }}>+ Nova Meta</button>
             </div>
@@ -326,13 +326,13 @@ export default function Gestao() {
       {aba === 'colaboradores' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
-            <button onClick={() => setModalColab(true)} style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer' }}>+ Novo Colaborador</button>
+            <button onClick={() => setModalColab(true)} className="btn btn-primary">+ Novo Colaborador</button>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
             {colaboradores.map(c => (
               <div key={c.id} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:18, textAlign:'center' }}>
                 <div style={{ width:52, height:52, borderRadius:12, background:c.avatar_cor||'#4F7CFF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:700, color:'#fff', margin:'0 auto 10px' }}>{c.avatar_iniciais}</div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, color:'var(--text1)', marginBottom:3 }}>{c.nome}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, color:'var(--text1)', marginBottom:3 }}>{c.nome}</div>
                 <div style={{ fontSize:11, color:'var(--text3)', marginBottom:6 }}>{c.cargo || '—'}</div>
                 {c.email && <div style={{ fontSize:11, color:'var(--accent)', marginBottom:4 }}>{c.email}</div>}
 
@@ -368,7 +368,7 @@ export default function Gestao() {
       {aba === 'metas' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
-            <button onClick={() => setModalMeta(true)} style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer' }}>+ Nova Meta</button>
+            <button onClick={() => setModalMeta(true)} className="btn btn-primary">+ Nova Meta</button>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {metas.map(m => {
@@ -378,7 +378,7 @@ export default function Gestao() {
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                     <div style={{ flex:1 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                        <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, color:'var(--text1)' }}>{m.titulo}</div>
+                        <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, color:'var(--text1)' }}>{m.titulo}</div>
                         <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, background:`${TIPO_META_COR[m.tipo]}22`, color:TIPO_META_COR[m.tipo], fontWeight:500 }}>{m.tipo}</span>
                       </div>
                       {m.descricao && <div style={{ fontSize:11, color:'var(--text3)', marginBottom:6 }}>{m.descricao}</div>}
@@ -419,13 +419,13 @@ export default function Gestao() {
             ].map((m,i) => (
               <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 16px' }}>
                 <div style={{ fontSize:10, color:'var(--text3)', marginBottom:4 }}>{m.label.toUpperCase()}</div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
               </div>
             ))}
           </div>
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600 }}>Todos os Alertas</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>Todos os Alertas</div>
               <button onClick={() => setModalAlerta(true)} style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'6px 12px', fontSize:11, fontWeight:500, color:'#fff', cursor:'pointer' }}>+ Novo alerta</button>
             </div>
             {alertas.map(a => (
@@ -453,16 +453,16 @@ export default function Gestao() {
       {/* ═══ AUDITORIA ════════════════════════════════════════════ */}
       {aba === 'auditoria' && (
         <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-          <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, marginBottom:14 }}>Log de Auditoria</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, marginBottom:14 }}>Log de Auditoria</div>
           <AuditoriaLog />
         </div>
       )}
 
       {/* ═══ MODAL NOVO COLABORADOR ═══════════════════════════════ */}
       {modalColab && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+        <div className="modal-overlay">
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:380 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Colaborador</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Colaborador</div>
             <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
               <div><label style={lbl}>NOME *</label><input style={inp} value={formColab.nome} onChange={e=>setFormColab({...formColab,nome:e.target.value})} placeholder="Nome completo"/></div>
               <div><label style={lbl}>E-MAIL</label><input style={inp} value={formColab.email} onChange={e=>setFormColab({...formColab,email:e.target.value})} placeholder="email@agencia.com"/></div>
@@ -478,13 +478,13 @@ export default function Gestao() {
 
       {/* ═══ MODAL ACESSO AO PORTAL ═══════════════════════════════ */}
       {modalAcesso && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+        <div className="modal-overlay">
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:500, maxHeight:'85vh', overflowY:'auto' }}>
             {/* Header */}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
               <div style={{ width:40, height:40, borderRadius:9, background:modalAcesso.avatar_cor||'#4F7CFF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:700, color:'#fff' }}>{modalAcesso.avatar_iniciais}</div>
               <div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600 }}>Gerenciar Acesso</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600 }}>Gerenciar Acesso</div>
                 <div style={{ fontSize:12, color:'var(--text3)' }}>{modalAcesso.nome} · {modalAcesso.cargo || 'Colaborador'}</div>
               </div>
             </div>
@@ -572,9 +572,9 @@ export default function Gestao() {
 
       {/* ═══ MODAL META ═══════════════════════════════════════════ */}
       {modalMeta && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:440, maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:18 }}>Nova Meta</div>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:18 }}>Nova Meta</div>
             <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
               <div><label style={lbl}>TÍTULO *</label><input style={inp} value={formMeta.titulo} onChange={e=>setFormMeta({...formMeta,titulo:e.target.value})} placeholder="Ex: Fechar 10 novos clientes"/></div>
               <div><label style={lbl}>DESCRIÇÃO</label><textarea style={{...inp,resize:'none'}} rows={2} value={formMeta.descricao} onChange={e=>setFormMeta({...formMeta,descricao:e.target.value})} placeholder="Detalhes..."/></div>
@@ -610,9 +610,9 @@ export default function Gestao() {
 
       {/* ═══ MODAL ALERTA ═════════════════════════════════════════ */}
       {modalAlerta && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:400 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Alerta</div>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Alerta</div>
             <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
               <div><label style={lbl}>TÍTULO *</label><input style={inp} value={formAlerta.titulo} onChange={e=>setFormAlerta({...formAlerta,titulo:e.target.value})} placeholder="Ex: Projeto atrasado"/></div>
               <div><label style={lbl}>TIPO</label>

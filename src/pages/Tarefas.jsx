@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast.js'
 import React, { useEffect, useState } from 'react'
 import { supabase, clientesAPI } from '../lib/supabase.js'
 
@@ -173,7 +174,7 @@ export default function Tarefas() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Tarefas</h1>
+          <h1 className="page-title">Tarefas</h1>
           <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
             {tarefas.filter(t => !t.concluida).length} pendentes · {tarefas.filter(t => t.backlog).length} no backlog
           </div>
@@ -194,7 +195,7 @@ export default function Tarefas() {
             ))}
           </div>
           <button onClick={() => setModal(true)}
-            style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer', whiteSpace:'nowrap' }}>
+            className="btn btn-primary" style={{ whiteSpace:'nowrap' }}>
             + Nova Tarefa
           </button>
         </div>
@@ -210,7 +211,7 @@ export default function Tarefas() {
         ].map((m,i) => (
           <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 16px' }}>
             <div style={{ fontSize:10, color:'var(--text3)', marginBottom:4, letterSpacing:'0.3px' }}>{m.label.toUpperCase()}</div>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
           </div>
         ))}
       </div>
@@ -229,7 +230,7 @@ export default function Tarefas() {
       {Object.entries(porData).sort(([a],[b]) => a.localeCompare(b)).map(([data, ts]) => (
         <div key={data} style={{ marginBottom:20 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:12, fontWeight:600, color: data===hoje ? 'var(--accent)' : 'var(--text2)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:600, color: data===hoje ? 'var(--accent)' : 'var(--text2)' }}>
               {formatData(data)}
             </div>
             <div style={{ flex:1, height:1, background:'var(--border)' }}></div>
@@ -243,7 +244,7 @@ export default function Tarefas() {
       {backlog.length > 0 && (
         <div style={{ marginBottom:20 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:12, fontWeight:600, color:'var(--text3)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:600, color:'var(--text3)' }}>
               Backlog — para fazer quando der
             </div>
             <div style={{ flex:1, height:1, background:'var(--border)' }}></div>
@@ -255,9 +256,9 @@ export default function Tarefas() {
 
       {/* Modal */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:420, maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:4 }}>Nova Tarefa</div>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:4 }}>Nova Tarefa</div>
             <div style={{ fontSize:12, color:'var(--text3)', marginBottom:18 }}>Preencha os dados da tarefa.</div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>

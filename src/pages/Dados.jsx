@@ -395,7 +395,7 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
   return (
     <div style={{ maxWidth:720, margin:'0 auto' }}>
       <div style={{ marginBottom:20 }}>
-        <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Dados & LGPD</h1>
+        <h1 className="page-title">Dados & LGPD</h1>
         <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
           Importação (CSV e PDF via IA), exportação e conformidade com a Lei 13.709/2018
         </div>
@@ -594,10 +594,10 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
       {/* ═══ IMPORTAR PDF via IA ════════════════════════════════════ */}
       {tab === 'importarpdf' && (
         <div>
-          <div style={alertBox('var(--accent2)','rgba(123,92,255,0.07)')}>
+          <div style={alertBox('var(--accent)','rgba(123,92,255,0.07)')}>
             <span style={{ fontSize:16 }}>🤖</span>
             <div>
-              <div style={{ fontSize:12, fontWeight:500, color:'var(--accent2)', marginBottom:3 }}>Importação via PDF com Inteligência Artificial</div>
+              <div style={{ fontSize:12, fontWeight:500, color:'var(--accent)', marginBottom:3 }}>Importação via PDF com Inteligência Artificial</div>
               <div style={{ fontSize:11, color:'var(--text2)', lineHeight:1.6 }}>
                 Faça upload do PDF exportado pelo <b style={{ color:'var(--text1)' }}>Xtrack</b> (ou qualquer CRM).
                 A IA analisa o documento, identifica todos os leads automaticamente e
@@ -614,7 +614,7 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); handlePDF({ target:{ files:[e.dataTransfer.files[0]] } }) }}
                 style={{
-                  border:`2px dashed ${pdfFile ? 'var(--accent2)' : 'var(--border2)'}`,
+                  border:`2px dashed ${pdfFile ? 'var(--accent)' : 'var(--border2)'}`,
                   borderRadius:8, padding:32, textAlign:'center', cursor:'pointer',
                   background: pdfFile ? 'rgba(123,92,255,0.05)' : 'var(--bg3)',
                   transition:'all 0.2s',
@@ -634,7 +634,7 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
             <div style={{ ...card, textAlign:'center', padding:40 }}>
               <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:16 }}>
                 {[0,150,300].map(d => (
-                  <div key={d} style={{ width:8, height:8, borderRadius:'50%', background:'var(--accent2)', animation:'pulse 1.2s ease-in-out infinite', animationDelay:`${d}ms` }}></div>
+                  <div key={d} style={{ width:8, height:8, borderRadius:'50%', background:'var(--accent)', animation:'pulse 1.2s ease-in-out infinite', animationDelay:`${d}ms` }}></div>
                 ))}
               </div>
               <style>{`@keyframes pulse{0%,80%,100%{opacity:.3}40%{opacity:1}}`}</style>
@@ -718,7 +718,7 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
                       {/* Status + MRR */}
                       <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0 }}>
                         {lead.mrr > 0 && (
-                          <span style={{ fontSize:11, fontWeight:600, color:'var(--green)', fontFamily:'Syne, sans-serif' }}>
+                          <span style={{ fontSize:11, fontWeight:600, color:'var(--green)', fontFamily:'var(--font-display)' }}>
                             R$ {Number(lead.mrr).toLocaleString('pt-BR')}
                           </span>
                         )}
@@ -739,7 +739,7 @@ Se não encontrar leads: {"leads": [], "total": 0, "observacoes": "motivo"}`
                     Cancelar
                   </button>
                   <button onClick={importarLeadsPDF} disabled={!pdfSelecionados.length || pdfImportando} style={{
-                    background: pdfSelecionados.length ? 'var(--accent2)' : 'var(--bg3)',
+                    background: pdfSelecionados.length ? 'var(--accent)' : 'var(--bg3)',
                     border:'none', borderRadius:7, padding:'8px 20px',
                     fontSize:12, fontWeight:500, color: pdfSelecionados.length ? '#fff' : 'var(--text3)',
                     cursor: pdfSelecionados.length ? 'pointer' : 'not-allowed',

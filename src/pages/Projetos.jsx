@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast.js'
 import React, { useEffect, useState } from 'react'
 import { projetosAPI, tarefasAPI, clientesAPI } from '../lib/supabase.js'
 
@@ -32,11 +33,13 @@ export default function Projetos() {
 
   async function handleSave() {
     setSaving(true)
-    await projetosAPI.criar({ ...form })
+    const { error } = await projetosAPI.criar({ ...form })
+    setSaving(false)
+    if (error) { toast.error('Erro ao criar projeto'); return }
+    toast.success('Projeto criado')
     setModal(false)
     setForm({ nome:'', cliente_id:'', servico:'Site', etapa:'backlog', prazo:'' })
     await load()
-    setSaving(false)
   }
 
   async function toggleTarefa(tarefaId, concluida, projetoId) {
@@ -64,8 +67,8 @@ export default function Projetos() {
       {/* Kanban */}
       <div style={{ flex:1, overflowY:'auto', paddingRight: selected ? 12 : 0 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-          <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Projetos & Tarefas</h1>
-          <button onClick={() => setModal(true)} style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer' }}>+ Novo Projeto</button>
+          <h1 className="page-title">Projetos & Tarefas</h1>
+          <button onClick={() => setModal(true)} className="btn btn-primary">+ Novo Projeto</button>
         </div>
 
         <div style={{ display:'flex', gap:10, overflowX:'auto', alignItems:'flex-start', paddingBottom:8 }}>
@@ -108,7 +111,7 @@ export default function Projetos() {
       {selected && (
         <div style={{ width:270, background:'var(--bg1)', borderLeft:'1px solid var(--border)', padding:16, overflowY:'auto', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600, flex:1, lineHeight:1.4 }}>{selected.nome}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600, flex:1, lineHeight:1.4 }}>{selected.nome}</div>
             <button onClick={() => setSelected(null)} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:16, lineHeight:1 }}>✕</button>
           </div>
           <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5, letterSpacing:'0.5px' }}>CLIENTE</div>
@@ -150,9 +153,9 @@ export default function Projetos() {
 
       {/* Modal novo projeto */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+        <div className="modal-overlay">
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:380 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Projeto</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:18 }}>Novo Projeto</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
               <div><label style={lbl}>NOME DO PROJETO *</label><input style={inp} value={form.nome} onChange={e => setForm({...form, nome:e.target.value})} placeholder="Ex: Site institucional"/></div>
               <div><label style={lbl}>CLIENTE</label>

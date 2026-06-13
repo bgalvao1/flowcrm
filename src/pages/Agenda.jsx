@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast.js'
 import React, { useEffect, useState } from 'react'
 import { supabase, clientesAPI } from '../lib/supabase.js'
 
@@ -10,7 +11,7 @@ const TIPO_COR = {
   'Reunião Online':'var(--accent)',
   'Reunião Presencial':'var(--green)',
   'Ligação':'var(--amber)',
-  'Follow-up':'var(--accent2)',
+  'Follow-up':'var(--accent)',
   'Apresentação':'var(--red)',
   'Outro':'var(--text3)',
 }
@@ -119,7 +120,7 @@ export default function Agenda() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Agenda</h1>
+          <h1 className="page-title">Agenda</h1>
           <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
             {eventos.filter(e => e.status==='agendado').length} eventos agendados
           </div>
@@ -140,7 +141,7 @@ export default function Agenda() {
             ))}
           </div>
           <button onClick={() => setModal(true)}
-            style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer', whiteSpace:'nowrap' }}>
+            className="btn btn-primary" style={{ whiteSpace:'nowrap' }}>
             + Novo Evento
           </button>
         </div>
@@ -152,11 +153,11 @@ export default function Agenda() {
           { label:'Hoje', value: eventos.filter(e=>e.data===hoje).length, cor:'var(--accent)' },
           { label:'Esta semana', value: eventos.filter(e=>{ const d=new Date(e.data); const n=new Date(); return (d-n)/(864e5)>=-1&&(d-n)/(864e5)<=7 }).length, cor:'var(--amber)' },
           { label:'Agendados', value: eventos.filter(e=>e.status==='agendado').length, cor:'var(--green)' },
-          { label:'Realizados', value: eventos.filter(e=>e.status==='realizado').length, cor:'var(--accent2)' },
+          { label:'Realizados', value: eventos.filter(e=>e.status==='realizado').length, cor:'var(--accent)' },
         ].map((m,i) => (
           <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 16px' }}>
             <div style={{ fontSize:10, color:'var(--text3)', marginBottom:4, letterSpacing:'0.3px' }}>{m.label.toUpperCase()}</div>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, color:m.cor }}>{m.value}</div>
           </div>
         ))}
       </div>
@@ -176,7 +177,7 @@ export default function Agenda() {
         <div key={data} style={{ marginBottom:20 }}>
           {/* Label da data */}
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:13, fontWeight:600, color: data===hoje ? 'var(--accent)' : 'var(--text2)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:600, color: data===hoje ? 'var(--accent)' : 'var(--text2)' }}>
               {formatData(data)}
             </div>
             <div style={{ flex:1, height:1, background:'var(--border)' }}></div>
@@ -195,7 +196,7 @@ export default function Agenda() {
               }}>
                 {/* Horário */}
                 <div style={{ textAlign:'center', minWidth:44, flexShrink:0 }}>
-                  <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, color:'var(--text1)' }}>
+                  <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, color:'var(--text1)' }}>
                     {ev.horario?.slice(0,5)}
                   </div>
                 </div>
@@ -206,7 +207,7 @@ export default function Agenda() {
                 {/* Conteúdo */}
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
-                    <div style={{ fontFamily:'Syne, sans-serif', fontSize:13, fontWeight:600, color:'var(--text1)' }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:600, color:'var(--text1)' }}>
                       {ev.titulo}
                     </div>
                     <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, fontWeight:500, background:`${TIPO_COR[ev.tipo]||'var(--accent)'}22`, color:TIPO_COR[ev.tipo]||'var(--accent)' }}>
@@ -256,9 +257,9 @@ export default function Agenda() {
 
       {/* Modal novo evento */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:420 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:4 }}>Novo Evento</div>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:4 }}>Novo Evento</div>
             <div style={{ fontSize:12, color:'var(--text3)', marginBottom:18 }}>Preencha os dados para agendar.</div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>

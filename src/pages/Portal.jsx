@@ -101,7 +101,7 @@ export default function Portal() {
   if (!logado) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--bg0)' }}>
       <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:14, padding:'32px 28px', width:340 }}>
-        <div style={{ fontFamily:'Syne, sans-serif', fontSize:22, fontWeight:700, background:'linear-gradient(135deg,#4F7CFF,#7B5CFF)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', marginBottom:4 }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:700, background:'linear-gradient(135deg,#4F7CFF,#7B5CFF)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', marginBottom:4 }}>
           FlowCRM
         </div>
         <div style={{ fontSize:12, color:'var(--text3)', marginBottom:24 }}>Portal de Acesso</div>
@@ -133,7 +133,7 @@ export default function Portal() {
             <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Acompanhe seus projetos</div>
           </div>
           <div style={{ flex:1, background:'rgba(123,92,255,0.08)', border:'1px solid rgba(123,92,255,0.2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'var(--accent2)', fontWeight:500 }}>👥 Colaboradores</div>
+            <div style={{ fontSize:10, color:'var(--accent)', fontWeight:500 }}>👥 Colaboradores</div>
             <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Acesse sua área de trabalho</div>
           </div>
         </div>
@@ -159,10 +159,10 @@ export default function Portal() {
     <div style={{ minHeight:'100vh', background:'var(--bg0)', display:'flex', flexDirection:'column' }}>
       {/* Topbar */}
       <div style={{ background:'var(--bg1)', borderBottom:'1px solid var(--border)', padding:'0 20px', height:50, display:'flex', alignItems:'center', gap:12 }}>
-        <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:700, color:'var(--accent)' }}>FlowCRM</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:700, color:'var(--accent)' }}>FlowCRM</div>
         <div style={{ width:1, height:16, background:'var(--border2)' }}></div>
         {/* Badge tipo de usuário */}
-        <div style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background: perfil?.tipo==='colaborador' ? 'rgba(123,92,255,0.15)' : 'rgba(79,124,255,0.15)', color: perfil?.tipo==='colaborador' ? 'var(--accent2)' : 'var(--accent)', fontWeight:500 }}>
+        <div style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background: perfil?.tipo==='colaborador' ? 'rgba(123,92,255,0.15)' : 'rgba(79,124,255,0.15)', color: perfil?.tipo==='colaborador' ? 'var(--accent)' : 'var(--accent)', fontWeight:500 }}>
           {perfil?.tipo === 'colaborador' ? '👥 Colaborador' : '🏢 Cliente'}
         </div>
         <div style={{ fontSize:13, color:'var(--text2)' }}>
@@ -188,7 +188,7 @@ export default function Portal() {
         {pview === 'inicio' && (
           <div>
             <div style={{ marginBottom:18 }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:16, fontWeight:600, marginBottom:3 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, marginBottom:3 }}>
                 Olá, {nomeExibido} 👋
               </div>
               <div style={{ fontSize:12, color:'var(--text3)' }}>
@@ -207,11 +207,11 @@ export default function Portal() {
               ] : [
                 { label:'PROJETOS VINCULADOS', value: projetos.length, sub:'Total', cor:'var(--accent)' },
                 { label:'CLIENTES DA AGÊNCIA', value: clientes.length, sub:'Cadastrados', cor:'var(--green)' },
-                { label:'CARGO', value: perfil.dados.cargo || '—', sub:'Função', cor:'var(--accent2)' },
+                { label:'CARGO', value: perfil.dados.cargo || '—', sub:'Função', cor:'var(--accent)' },
               ].map((c,i) => (
                 <div key={i} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
                   <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5, letterSpacing:'0.3px' }}>{c.label}</div>
-                  <div style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:600, color:c.cor }}>{c.value}</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:600, color:c.cor }}>{c.value}</div>
                   <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{c.sub}</div>
                 </div>
               ))}
@@ -249,7 +249,7 @@ export default function Portal() {
         {/* ── PROJETOS ───────────────────────────────────────────── */}
         {pview === 'projetos' && (
           <div>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:14 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>
               {perfil?.tipo === 'colaborador' ? 'Projetos Atribuídos' : 'Meus Projetos'}
             </div>
             {projetos.length === 0 && (
@@ -264,7 +264,7 @@ export default function Portal() {
                 <div key={p.id} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16, marginBottom:12 }}>
                   <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
                     <div>
-                      <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600 }}>{p.nome}</div>
+                      <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>{p.nome}</div>
                       <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
                         {p.servico}
                         {perfil?.tipo === 'colaborador' && p.clientes && ` · Cliente: ${p.clientes.nome}`}
@@ -304,7 +304,7 @@ export default function Portal() {
         {/* ── MENSAGENS (só clientes) ─────────────────────────────── */}
         {pview === 'mensagens' && perfil?.tipo === 'cliente' && (
           <div style={{ maxWidth:600 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:14 }}>Mensagens com a Flow Agency</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Mensagens com a Flow Agency</div>
             <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16, marginBottom:12, minHeight:200, maxHeight:360, overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
               {msgs.length === 0 && <div style={{ fontSize:12, color:'var(--text3)' }}>Nenhuma mensagem ainda.</div>}
               {msgs.map((m,i) => (
@@ -334,7 +334,7 @@ export default function Portal() {
         {/* ── FINANCEIRO (só clientes) ────────────────────────────── */}
         {pview === 'financeiro' && perfil?.tipo === 'cliente' && (
           <div style={{ maxWidth:500 }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:14 }}>Financeiro</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Financeiro</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
               <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
                 <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5 }}>SEGMENTO</div>
@@ -342,15 +342,14 @@ export default function Portal() {
               </div>
               <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px' }}>
                 <div style={{ fontSize:10, color:'var(--text3)', marginBottom:5 }}>MENSALIDADE</div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:18, fontWeight:600, color:'var(--green)' }}>R$ {Number(perfil.dados.mrr||0).toLocaleString('pt-BR')}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:600, color:'var(--green)' }}>R$ {Number(perfil.dados.mrr||0).toLocaleString('pt-BR')}</div>
               </div>
             </div>
             <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:16 }}>
               <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.7, marginBottom:12 }}>
                 Para detalhes completos de cobranças, notas fiscais ou dúvidas financeiras, entre em contato com a Flow Agency diretamente pelo chat de mensagens.
               </div>
-              <button onClick={() => setPview('mensagens')}
-                style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer' }}>
+              <button onClick={() => setPview('mensagens')} className="btn btn-primary">
                 Ir para Mensagens
               </button>
             </div>
@@ -360,7 +359,7 @@ export default function Portal() {
         {/* ── CLIENTES (só colaboradores) ─────────────────────────── */}
         {pview === 'clientes' && perfil?.tipo === 'colaborador' && (
           <div>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:14 }}>Clientes da Agência</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:14 }}>Clientes da Agência</div>
             <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
@@ -382,7 +381,7 @@ export default function Portal() {
                           {c.status}
                         </span>
                       </td>
-                      <td style={{ padding:'9px 12px', fontSize:12, fontWeight:600, color:'var(--green)', fontFamily:'Syne, sans-serif' }}>
+                      <td style={{ padding:'9px 12px', fontSize:12, fontWeight:600, color:'var(--green)', fontFamily:'var(--font-display)' }}>
                         {c.mrr > 0 ? `R$ ${Number(c.mrr).toLocaleString('pt-BR')}` : '—'}
                       </td>
                     </tr>

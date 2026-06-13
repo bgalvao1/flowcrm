@@ -75,7 +75,7 @@ Estruture a proposta com: 1) Apresentação personalizada, 2) Diagnóstico, 3) S
   return (
     <div style={{ maxWidth:680, margin:'0 auto' }}>
       <div style={{ marginBottom:20 }}>
-        <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700 }}>Gerador de Proposta com IA</h1>
+        <h1 className="page-title">Gerador de Proposta com IA</h1>
         <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>Preencha os dados e a IA monta a proposta completa</div>
       </div>
 
@@ -161,11 +161,11 @@ Estruture a proposta com: 1) Apresentação personalizada, 2) Diagnóstico, 3) S
             <div style={{ display:'flex', gap:10, marginBottom:12 }}>
               {form.valor && <div style={{ background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:7, padding:'8px 14px', flex:1, textAlign:'center' }}>
                 <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>Projeto</div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:16, fontWeight:600, color:'var(--green)' }}>R$ {parseFloat(form.valor).toLocaleString('pt-BR')}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, color:'var(--green)' }}>R$ {parseFloat(form.valor).toLocaleString('pt-BR')}</div>
               </div>}
               {form.mensalidade > 0 && <div style={{ background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:7, padding:'8px 14px', flex:1, textAlign:'center' }}>
                 <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>Mensalidade</div>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:16, fontWeight:600, color:'var(--green)' }}>R$ {parseFloat(form.mensalidade).toLocaleString('pt-BR')}/mês</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, color:'var(--green)' }}>R$ {parseFloat(form.mensalidade).toLocaleString('pt-BR')}/mês</div>
               </div>}
             </div>
           )}
@@ -181,7 +181,7 @@ Estruture a proposta com: 1) Apresentação personalizada, 2) Diagnóstico, 3) S
         <div>
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:18, marginBottom:12 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:14, fontWeight:600 }}>{loading ? 'Gerando proposta com IA...' : 'Proposta gerada com sucesso ✓'}</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:600 }}>{loading ? 'Gerando proposta com IA...' : 'Proposta gerada com sucesso ✓'}</div>
               {!loading && !saved && (
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => setStep(3)} style={{ background:'none', border:'1px solid var(--border2)', borderRadius:7, padding:'6px 12px', fontSize:11, color:'var(--text2)', cursor:'pointer' }}>Editar dados</button>
@@ -202,14 +202,14 @@ Estruture a proposta com: 1) Apresentação personalizada, 2) Diagnóstico, 3) S
           </div>
           {!loading && resultado && (
             <div style={{ background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:12, padding:20 }}>
-              <div style={{ fontFamily:'Syne, sans-serif', fontSize:18, fontWeight:700, color:'var(--accent)', marginBottom:2 }}>Flow Agency</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--accent)', marginBottom:2 }}>Flow Agency</div>
               <div style={{ fontSize:10, color:'var(--text3)', marginBottom:16 }}>Proposta Comercial · {new Date().toLocaleDateString('pt-BR')}</div>
               <div style={{ fontSize:11, color:'var(--text3)', fontWeight:500, letterSpacing:'0.5px', borderBottom:'1px solid var(--border2)', paddingBottom:6, marginBottom:10 }}>RESUMO FINANCEIRO</div>
               <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Cliente</span><span style={{ color:'var(--text1)', fontWeight:500 }}>{form.cliente}</span></div>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Serviços</span><span style={{ color:'var(--text1)', fontWeight:500 }}>{selectedServices.join(', ')}</span></div>
-                {form.valor && <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Valor do projeto</span><span style={{ color:'var(--green)', fontWeight:600, fontFamily:'Syne, sans-serif' }}>R$ {parseFloat(form.valor).toLocaleString('pt-BR')}</span></div>}
-                {form.mensalidade > 0 && <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Mensalidade</span><span style={{ color:'var(--green)', fontWeight:600, fontFamily:'Syne, sans-serif' }}>R$ {parseFloat(form.mensalidade).toLocaleString('pt-BR')}/mês</span></div>}
+                {form.valor && <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Valor do projeto</span><span style={{ color:'var(--green)', fontWeight:600, fontFamily:'var(--font-display)' }}>R$ {parseFloat(form.valor).toLocaleString('pt-BR')}</span></div>}
+                {form.mensalidade > 0 && <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)' }}><span style={{ color:'var(--text2)' }}>Mensalidade</span><span style={{ color:'var(--green)', fontWeight:600, fontFamily:'var(--font-display)' }}>R$ {parseFloat(form.mensalidade).toLocaleString('pt-BR')}/mês</span></div>}
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0' }}><span style={{ color:'var(--text2)' }}>Validade</span><span style={{ color:'var(--text1)' }}>{form.validade}</span></div>
               </div>
             </div>

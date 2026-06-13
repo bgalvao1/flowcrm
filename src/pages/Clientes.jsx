@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast.js'
 import React, { useEffect, useState } from 'react'
 import { clientesAPI } from '../lib/supabase.js'
 
@@ -16,7 +17,7 @@ const STATUS_COMERCIAL = [
 const STATUS_COM_COR = {
   'Novo Lead':'var(--accent)',
   'Em Negociação':'var(--amber)',
-  'Reunião Realizada':'var(--accent2)',
+  'Reunião Realizada':'var(--accent)',
   'Proposta Enviada':'var(--amber)',
   'Contrato Fechado':'var(--green)',
   'Perdido':'var(--red)',
@@ -77,17 +78,21 @@ export default function Clientes() {
     setSaving(true)
     const iniciais = form.nome.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()
     const cor = CORES[Math.floor(Math.random() * CORES.length)]
-    await clientesAPI.criar({ ...form, mrr: parseFloat(form.mrr)||0, iniciais, cor })
+    const { error } = await clientesAPI.criar({ ...form, mrr: parseFloat(form.mrr)||0, iniciais, cor })
+    setSaving(false)
+    if (error) { toast.error('Erro ao salvar cliente'); return }
+    toast.success('Cliente cadastrado')
     setModal(false)
     setForm(FORM_INICIAL)
     setAbaForm('basico')
     await load()
-    setSaving(false)
   }
 
   async function handleDelete(id) {
     if (!confirm('Remover este cliente?')) return
-    await clientesAPI.deletar(id)
+    const { error } = await clientesAPI.deletar(id)
+    if (error) { toast.error('Erro ao remover cliente'); return }
+    toast.success('Cliente removido')
     await load()
   }
 
@@ -112,12 +117,12 @@ export default function Clientes() {
     <div>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
-        <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:20, fontWeight:700, flex:1 }}>Clientes</h1>
+        <h1 className="page-title">Clientes</h1>
         <input value={busca} onChange={e => setBusca(e.target.value)}
           placeholder="Buscar nome, nicho, cidade, status..."
           style={{ ...inp, width:260 }} />
         <button onClick={() => { setModal(true); setAbaForm('basico') }}
-          style={{ background:'var(--accent)', border:'none', borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:500, color:'#fff', cursor:'pointer', whiteSpace:'nowrap' }}>
+          className="btn btn-primary" style={{ whiteSpace:'nowrap' }}>
           + Novo Cliente
         </button>
       </div>
@@ -192,7 +197,7 @@ export default function Clientes() {
                 {detalhe.iniciais}
               </div>
               <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'Syne, sans-serif', fontSize:16, fontWeight:600, color:'var(--text1)' }}>{detalhe.nome}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, color:'var(--text1)' }}>{detalhe.nome}</div>
                 {detalhe.empresa && detalhe.empresa !== detalhe.nome && <div style={{ fontSize:11, color:'var(--text3)' }}>{detalhe.empresa}</div>}
               </div>
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
@@ -288,9 +293,9 @@ export default function Clientes() {
 
       {/* Modal de cadastro */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+        <div className="modal-overlay">
           <div style={{ background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:12, padding:24, width:560, maxHeight:'92vh', overflowY:'auto' }}>
-            <div style={{ fontFamily:'Syne, sans-serif', fontSize:15, fontWeight:600, marginBottom:16 }}>Novo Cliente</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:600, marginBottom:16 }}>Novo Cliente</div>
 
             {/* Abas */}
             <div style={{ display:'flex', gap:4, background:'var(--bg3)', borderRadius:8, padding:3, marginBottom:18 }}>
