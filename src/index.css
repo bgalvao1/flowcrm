@@ -364,3 +364,118 @@ a { text-decoration: none; color: inherit; }
   }
   .flow-line { animation: none; }
 }
+
+/* ════════════════════════════════════════════════════════
+   TEMA CLARO — ativado pela classe [data-theme="light"]
+   ════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg0: #F4F6F4;
+  --bg1: #FFFFFF;
+  --bg2: #FFFFFF;
+  --bg3: #F0F3F1;
+  --bg4: #E4EAE6;
+  --border: #DDE4DF;
+  --border2: #C8D4CC;
+
+  --text1: #141A16;
+  --text2: #4A5C50;
+  --text3: #8A9E90;
+
+  --accent: #B8912A;
+  --accent2: #A06820;
+  --on-accent: #FFF8EC;
+  --green: #1A9E5C;
+  --amber: #C07A10;
+  --red: #C44038;
+  --sky: #2A7FB0;
+
+  --gold-08: rgba(184,145,42,0.08);
+  --gold-14: rgba(184,145,42,0.14);
+  --gold-25: rgba(184,145,42,0.25);
+  --grad-brand: linear-gradient(135deg, #B8912A, #A06820);
+  --shadow-lift: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-pop:  0 10px 32px rgba(0,0,0,0.14);
+}
+
+[data-theme="light"] .sidebar { box-shadow: 2px 0 12px rgba(0,0,0,0.06); }
+[data-theme="light"] .kb-card { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+[data-theme="light"] .kb-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+[data-theme="light"] .modal { box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
+
+/* ── Transições de página ─────────────────────────────── */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-transition {
+  animation: page-in 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Avatar com iniciais na topbar ───────────────────────*/
+.avatar-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 99px; padding: 4px 12px 4px 4px;
+  cursor: pointer; transition: all 0.15s ease;
+  position: relative;
+}
+.avatar-pill:hover { border-color: var(--accent); background: var(--gold-08); }
+.avatar-initials {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--grad-brand); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--on-accent);
+  flex-shrink: 0;
+}
+.avatar-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--r-md); min-width: 200px;
+  box-shadow: var(--shadow-pop); z-index: 999;
+  overflow: hidden;
+  animation: pop-in 0.18s cubic-bezier(0.2,0.9,0.3,1.2) both;
+}
+.avatar-menu-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 14px; font-size: 12px; color: var(--text2);
+  cursor: pointer; border: none; background: none; width: 100%;
+  text-align: left; transition: background 0.12s ease;
+}
+.avatar-menu-item:hover { background: var(--bg3); color: var(--text1); }
+.avatar-menu-item.danger:hover { background: rgba(232,100,91,0.08); color: var(--red); }
+.avatar-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── Toggle de tema na topbar ────────────────────────── */
+.theme-toggle {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: var(--bg4); border: 1px solid var(--border2);
+  position: relative; cursor: pointer; transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.theme-toggle.light { background: var(--grad-brand); border-color: var(--accent); }
+.theme-toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.theme-toggle.light::after { transform: translateX(16px); }
+
+/* ── Micro-interações extras ─────────────────────────── */
+.nav-item { position: relative; overflow: hidden; }
+.nav-item::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--gold-08); border-radius: inherit;
+  opacity: 0; transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.nav-item:active::after { opacity: 1; }
+
+.btn:active { transform: scale(0.96) !important; }
+
+/* Hover suave nas linhas da tabela */
+tbody tr { transition: background 0.12s ease; }
+tbody tr:hover { background: var(--bg3) !important; }
+
+/* Scrollbar mais fina no tema claro */
+[data-theme="light"]::-webkit-scrollbar-thumb { background: var(--border2); }

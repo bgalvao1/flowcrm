@@ -1,10 +1,9 @@
-import React, { useEffect, useState, createContext, useContext } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { authAPI } from '../lib/supabase.js'
+import React, { useEffect, useState, useRef, createContext, useContext } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { authAPI, supabase } from '../lib/supabase.js'
 import Toaster from './Toaster.jsx'
 import CommandPalette from './CommandPalette.jsx'
 
-// Context global para modo compacto do kanban
 export const CompactCtx = createContext(false)
 export const useCompact = () => useContext(CompactCtx)
 
@@ -31,48 +30,73 @@ const NAV = [
   ]},
 ]
 
-// Mapa rápido de atalhos: letra → rota
 const ATALHOS = {}
 NAV.forEach(g => g.items.forEach(i => { if (i.key) ATALHOS[i.key] = i.to }))
 
+function getInitials(email) {
+  if (!email) return 'FA'
+  const parts = email.split('@')[0].split(/[._-]/)
+  return parts.slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'FA'
+}
+
 export default function Layout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [cmdOpen, setCmdOpen] = useState(false)
   const [drawer, setDrawer] = useState(false)
   const [compact, setCompact] = useState(() => localStorage.getItem('flowcrm-compact') === '1')
+  const [theme, setTheme] = useState(() => localStorage.getItem('flowcrm-theme') || 'dark')
   const [shortcutsHint, setShortcutsHint] = useState(false)
+  const [avatarMenu, setAvatarMenu] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [pageKey, setPageKey] = useState(location.pathname)
+  const avatarRef = useRef(null)
 
+  // Aplica tema no documento
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('flowcrm-theme', theme)
+  }, [theme])
+
+  // Pega email do usuário logado
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user?.email || '')
+    })
+  }, [])
+
+  // Transição de página ao mudar rota
+  useEffect(() => {
+    setPageKey(location.pathname)
+  }, [location.pathname])
+
+  // Fecha avatar menu ao clicar fora
+  useEffect(() => {
+    function onClickOut(e) {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) setAvatarMenu(false)
+    }
+    document.addEventListener('mousedown', onClickOut)
+    return () => document.removeEventListener('mousedown', onClickOut)
+  }, [])
+
+  // Atalhos de teclado
   useEffect(() => {
     const onKey = (e) => {
       const tag = document.activeElement?.tagName
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || document.activeElement?.isContentEditable
       if (typing) return
-
-      // Ctrl+K — command palette
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault(); setCmdOpen(o => !o); return
-      }
-      // ? — mostrar dica de atalhos
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setCmdOpen(o => !o); return }
       if (e.key === '?') { setShortcutsHint(h => !h); return }
-
-      // Atalhos de navegação: letra simples
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && ATALHOS[e.key]) {
-        navigate(ATALHOS[e.key])
-      }
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && ATALHOS[e.key]) navigate(ATALHOS[e.key])
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [navigate])
 
   const handleLogout = async () => { await authAPI.logout(); navigate('/login') }
-
-  function toggleCompact() {
-    setCompact(c => {
-      const next = !c
-      localStorage.setItem('flowcrm-compact', next ? '1' : '0')
-      return next
-    })
-  }
+  const toggleCompact = () => setCompact(c => { const n = !c; localStorage.setItem('flowcrm-compact', n ? '1' : '0'); return n })
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+  const initials = getInitials(userEmail)
 
   return (
     <CompactCtx.Provider value={compact}>
@@ -107,22 +131,21 @@ export default function Layout() {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {item.icon}{item.label}
                     </span>
-                    {item.key && (
-                      <span className="kbd" style={{ fontSize: 9, opacity: 0.5 }}>{item.key}</span>
-                    )}
+                    {item.key && <span className="kbd" style={{ fontSize: 9, opacity: 0.45 }}>{item.key}</span>}
                   </NavLink>
                 ))}
               </div>
             ))}
           </nav>
 
-          <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--grad-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'var(--on-accent)', flexShrink: 0 }}>
-              FA
-            </div>
+          {/* Avatar no rodapé da sidebar */}
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="avatar-initials" style={{ width: 30, height: 30, fontSize: 11 }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text1)' }}>Flow Agency</div>
-              <button onClick={handleLogout} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--text3)' }}
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {userEmail || 'Flow Agency'}
+              </div>
+              <button onClick={handleLogout} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--text3)', cursor: 'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}>
                 Sair →
@@ -141,31 +164,73 @@ export default function Layout() {
                 <span className="kbd">Ctrl K</span>
               </button>
             </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Modo compacto do kanban */}
-              <button
-                onClick={toggleCompact}
-                title={compact ? 'Modo normal' : 'Modo compacto'}
-                style={{ background: compact ? 'var(--gold-14)' : 'transparent', border: '1px solid var(--border2)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10, color: compact ? 'var(--accent)' : 'var(--text3)', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="3" rx="1" fill="currentColor" opacity=".8"/><rect x="1" y="6" width="14" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="1" y="11" width="14" height="3" rx="1" fill="currentColor" opacity=".4"/></svg>
+              {/* Modo compacto */}
+              <button onClick={toggleCompact} title={compact ? 'Modo normal' : 'Modo compacto'}
+                style={{ background: compact ? 'var(--gold-14)' : 'transparent', border: '1px solid var(--border2)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10, color: compact ? 'var(--accent)' : 'var(--text3)', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="3" rx="1" fill="currentColor" opacity=".8"/><rect x="1" y="6" width="14" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="1" y="11" width="14" height="3" rx="1" fill="currentColor" opacity=".4"/></svg>
                 {compact ? 'Compacto' : 'Normal'}
               </button>
+
+              {/* Toggle tema */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" fill="var(--text3)"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4" stroke="var(--text3)" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                <button className={`theme-toggle${theme === 'light' ? ' light' : ''}`} onClick={toggleTheme} title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'} />
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M13.5 9A6 6 0 017 2.5a5.5 5.5 0 100 11A6 6 0 0113.5 9z" fill="var(--text3)"/></svg>
+              </div>
+
               {/* Dica de atalhos */}
-              <button
-                onClick={() => setShortcutsHint(h => !h)}
-                title="Atalhos de teclado (?)"
-                style={{ background: 'transparent', border: '1px solid var(--border2)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10, color: 'var(--text3)', transition: 'all 0.15s' }}
-              >
+              <button onClick={() => setShortcutsHint(h => !h)} title="Atalhos (?)"
+                style={{ background: 'transparent', border: '1px solid var(--border2)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10, color: 'var(--text3)', fontWeight: 600, transition: 'all 0.15s' }}>
                 ?
               </button>
+
               <span className="live-dot" />
-              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Dados ao vivo</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Ao vivo</span>
+
+              {/* Avatar com dropdown */}
+              <div ref={avatarRef} style={{ position: 'relative' }}>
+                <button className="avatar-pill" onClick={() => setAvatarMenu(m => !m)}>
+                  <div className="avatar-initials">{initials}</div>
+                  <span style={{ fontSize: 12, color: 'var(--text2)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {userEmail.split('@')[0] || 'Flow'}
+                  </span>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--text3)', transform: avatarMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+
+                {avatarMenu && (
+                  <div className="avatar-menu">
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text1)' }}>Flow Agency</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>{userEmail}</div>
+                    </div>
+                    <button className="avatar-menu-item" onClick={() => { navigate('/gestao'); setAvatarMenu(false) }}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                      Central de Gestão
+                    </button>
+                    <button className="avatar-menu-item" onClick={() => { navigate('/dados'); setAvatarMenu(false) }}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M5 8h6M5 5h6M5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                      Dados & LGPD
+                    </button>
+                    <div className="avatar-menu-divider" />
+                    <button className="avatar-menu-item danger" onClick={handleLogout}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      Sair da conta
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
+          {/* Área de conteúdo com transição de página */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
-            <Outlet />
+            <div key={pageKey} className="page-transition">
+              <Outlet />
+            </div>
           </div>
         </main>
 
