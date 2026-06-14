@@ -24,6 +24,8 @@ import Precificacao from './pages/Precificacao.jsx'
 import Reativacao from './pages/Reativacao.jsx'
 import GoogleCalendar from './pages/GoogleCalendar.jsx'
 import SaasManager from './pages/SaasManager.jsx'
+import Nipponflex from './pages/Nipponflex.jsx'
+import NipponflexAdmin from './pages/NipponflexAdmin.jsx'
 
 function PrivateRoute({ session, children }) {
   if (session === null) return <Navigate to="/login" replace />
@@ -45,6 +47,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/portal" element={<Portal />} />
+        <Route path="/nipponflex" element={<Nipponflex />} />
         <Route path="/" element={
           <PrivateRoute session={session}>
             <Layout />
@@ -71,6 +74,7 @@ export default function App() {
           <Route path="reativacao" element={<Reativacao />} />
           <Route path="google-calendar" element={<GoogleCalendar />} />
           <Route path="saas" element={<SaasManager />} />
+          <Route path="nipponflex-admin" element={<NipponflexAdmin />} />
         </Route>
       </Routes>
     </BrowserRouter>

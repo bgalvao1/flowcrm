@@ -35,6 +35,7 @@ const NAV = [
   ]},
   { section: 'Gestão', items: [
     { to: '/knowledge', label: 'Base de Conhecimento', key: null, icon: I('M4 6h8M4 9h6M4 12h4', <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>) },
+    { to: '/nipponflex-admin', label: 'Nipponflex', key: null, icon: I('M8 2l1.5 5h5l-4 3 1.5 5L8 12l-4 3 1.5-5-4-3h5z') },
     { to: '/saas', label: 'Gestão SaaS', key: null, icon: I('M8 2v12M5 5h6M5 11h4', <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" opacity=".4"/>) },
     { to: '/google-calendar', label: 'Google Agenda', key: null, icon: I('M5 1v3M11 1v3M2 7h12', <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" opacity=".5"/>) },
     { to: '/gestao', label: 'Central de Gestão', key: null, icon: I('M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5l3.5-.5L8 1z') },
