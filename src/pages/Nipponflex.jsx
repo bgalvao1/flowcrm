@@ -30,9 +30,14 @@ const lbl = { fontSize: 10, color: NF.text3, display: 'block', marginBottom: 4, 
 
 // ── Tela de Login ─────────────────────────────────────────
 function LoginScreen({ onLogin }) {
+  const [aba, setAba] = useState('login') // login | cadastro
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [nome, setNome] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [confirmar, setConfirmar] = useState('')
   const [erro, setErro] = useState('')
+  const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e) {
@@ -46,49 +51,148 @@ function LoginScreen({ onLogin }) {
       .eq('ativo', true)
       .single()
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado.'); return }
+    if (error || !data) { setErro('E-mail não encontrado ou acesso inativo.'); return }
     if (data.senha !== senha) { setErro('Senha incorreta.'); return }
     onLogin(data)
   }
 
+  async function handleCadastro(e) {
+    e.preventDefault()
+    setErro('')
+    if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
+    if (senha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    setLoading(true)
+
+    // Verifica se e-mail já existe
+    const { data: existe } = await supabase
+      .from('nipponflex_distribuidores')
+      .select('id')
+      .ilike('email', email.trim().toLowerCase())
+      .single()
+
+    if (existe) {
+      setLoading(false)
+      setErro('Este e-mail já está cadastrado. Faça login.')
+      return
+    }
+
+    const { error } = await supabase.from('nipponflex_distribuidores').insert({
+      nome: nome.trim(),
+      email: email.trim().toLowerCase(),
+      senha,
+      cidade: cidade.trim(),
+      ativo: true,
+    })
+    setLoading(false)
+    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
+    setSucesso('Cadastro realizado com sucesso! Faça login para continuar.')
+    setAba('login')
+    setNome(''); setCidade(''); setConfirmar('')
+  }
+
+  const Logo = () => (
+    <div style={{ textAlign: 'center', marginBottom: 28 }}>
+      <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>
+        <span style={{ color: NF.accent }}>Nipponflex</span>
+        <span style={{ color: NF.text1 }}> CRM</span>
+      </div>
+      <div style={{ fontSize: 11, color: NF.text3, letterSpacing: '1px', textTransform: 'uppercase' }}>Portal do Distribuidor</div>
+    </div>
+  )
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: NF.bg0, fontFamily: 'DM Sans, sans-serif' }}>
-      {/* Fundo decorativo */}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: NF.bg0, fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <div style={{ position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,180,216,0.06) 0%, transparent 70%)' }} />
       </div>
 
-      <div style={{ background: NF.bg2, border: `1px solid ${NF.border2}`, borderRadius: 16, padding: '36px 32px', width: 340, position: 'relative', zIndex: 1, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>
-            <span style={{ color: NF.accent }}>Nipponflex</span>
-            <span style={{ color: NF.text1 }}> CRM</span>
-          </div>
-          <div style={{ fontSize: 11, color: NF.text3, letterSpacing: '1px', textTransform: 'uppercase' }}>Portal do Distribuidor</div>
+      <div style={{ background: NF.bg2, border: `1px solid ${NF.border2}`, borderRadius: 16, padding: '32px 28px', width: '100%', maxWidth: 360, position: 'relative', zIndex: 1, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+        <Logo />
+
+        {/* Abas */}
+        <div style={{ display: 'flex', background: NF.bg3, borderRadius: 8, padding: 3, marginBottom: 24, gap: 3 }}>
+          {[['login','Entrar'],['cadastro','Cadastrar']].map(([id, label]) => (
+            <button key={id} onClick={() => { setAba(id); setErro('') }}
+              style={{ flex: 1, background: aba === id ? NF.bg2 : 'transparent', border: 'none', borderRadius: 6, padding: '7px 0', fontSize: 12, fontWeight: 600, color: aba === id ? NF.accent : NF.text3, cursor: 'pointer', transition: 'all 0.15s', boxShadow: aba === id ? '0 1px 4px rgba(0,0,0,0.3)' : 'none' }}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>E-mail</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com" style={inp} />
+        {sucesso && (
+          <div style={{ fontSize: 12, color: NF.green, marginBottom: 16, background: 'rgba(0,200,150,0.08)', border: `1px solid rgba(0,200,150,0.2)`, borderRadius: 6, padding: '10px 12px', lineHeight: 1.5 }}>
+            ✓ {sucesso}
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={lbl}>Senha</label>
-            <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={inp} />
-          </div>
-          {erro && (
-            <div style={{ fontSize: 11, color: NF.red, marginBottom: 14, background: 'rgba(232,90,79,0.08)', border: `1px solid rgba(232,90,79,0.2)`, borderRadius: 6, padding: '8px 12px' }}>{erro}</div>
-          )}
-          <button type="submit" disabled={loading}
-            style={{ width: '100%', background: NF.grad, border: 'none', borderRadius: 8, padding: 11, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: loading ? 0.7 : 1, letterSpacing: '0.3px' }}>
-            {loading ? 'Entrando...' : 'Acessar sistema'}
-          </button>
-        </form>
+        )}
+
+        {/* LOGIN */}
+        {aba === 'login' && (
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>E-mail</label>
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com" style={inp} autoFocus />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={lbl}>Senha</label>
+              <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={inp} />
+            </div>
+            {erro && <div style={{ fontSize: 11, color: NF.red, marginBottom: 14, background: 'rgba(232,90,79,0.08)', border: `1px solid rgba(232,90,79,0.2)`, borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
+            <button type="submit" disabled={loading}
+              style={{ width: '100%', background: NF.grad, border: 'none', borderRadius: 8, padding: 11, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Entrando...' : 'Acessar sistema'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 14, fontSize: 12, color: NF.text3 }}>
+              Ainda não tem conta?{' '}
+              <button type="button" onClick={() => { setAba('cadastro'); setErro('') }}
+                style={{ background: 'none', border: 'none', color: NF.accent, cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}>
+                Cadastre-se grátis
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* CADASTRO */}
+        {aba === 'cadastro' && (
+          <form onSubmit={handleCadastro}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>Seu nome *</label>
+              <input value={nome} onChange={e => setNome(e.target.value)} required placeholder="Nome completo" style={inp} autoFocus />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>Cidade</label>
+              <input value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Sua cidade" style={inp} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>E-mail *</label>
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com" style={inp} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>Senha *</label>
+              <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="Mínimo 6 caracteres" style={inp} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={lbl}>Confirmar senha *</label>
+              <input value={confirmar} onChange={e => setConfirmar(e.target.value)} type="password" required placeholder="Repita a senha" style={inp} />
+            </div>
+            {erro && <div style={{ fontSize: 11, color: NF.red, marginBottom: 14, background: 'rgba(232,90,79,0.08)', border: `1px solid rgba(232,90,79,0.2)`, borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
+            <button type="submit" disabled={loading}
+              style={{ width: '100%', background: NF.grad, border: 'none', borderRadius: 8, padding: 11, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Cadastrando...' : 'Criar minha conta'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 14, fontSize: 12, color: NF.text3 }}>
+              Já tem conta?{' '}
+              <button type="button" onClick={() => { setAba('login'); setErro('') }}
+                style={{ background: 'none', border: 'none', color: NF.accent, cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}>
+                Fazer login
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )
 }
+
 
 // ── Card de cliente ───────────────────────────────────────
 function ClienteCard({ c, onDelete, onEdit }) {
