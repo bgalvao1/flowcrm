@@ -26,6 +26,8 @@ import GoogleCalendar from './pages/GoogleCalendar.jsx'
 import SaasManager from './pages/SaasManager.jsx'
 import Nipponflex from './pages/Nipponflex.jsx'
 import NipponflexAdmin from './pages/NipponflexAdmin.jsx'
+import CRMAccess from './pages/CRMAccess.jsx'
+import CRMAccessAdmin from './pages/CRMAccessAdmin.jsx'
 
 function PrivateRoute({ session, children }) {
   if (session === null) return <Navigate to="/login" replace />
@@ -48,6 +50,7 @@ export default function App() {
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/portal" element={<Portal />} />
         <Route path="/nipponflex" element={<Nipponflex />} />
+        <Route path="/acesso" element={<CRMAccess />} />
         <Route path="/" element={
           <PrivateRoute session={session}>
             <Layout />
@@ -75,6 +78,7 @@ export default function App() {
           <Route path="google-calendar" element={<GoogleCalendar />} />
           <Route path="saas" element={<SaasManager />} />
           <Route path="nipponflex-admin" element={<NipponflexAdmin />} />
+          <Route path="crm-access" element={<CRMAccessAdmin />} />
         </Route>
       </Routes>
     </BrowserRouter>
