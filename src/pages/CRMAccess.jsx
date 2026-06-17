@@ -140,17 +140,67 @@ function Pipeline({ empresaId }) {
 
   useEffect(() => { load() }, [empresaId])
 
+  // Mapeia campos do form (nomes amigáveis) para colunas reais do banco
+  function formParaBanco(f) {
+    return {
+      empresa_id: empresaId,
+      nome: f.nome,
+      empresa: f.empresa,
+      WhatsApp: f.whatsapp,
+      'e-mail': f.email,
+      carga: f.cargo,
+      'serviço': f.servico,
+      valentia: parseFloat(f.valor) || 0,
+      etapa: f.etapa,
+      temperatura: f.temperatura,
+      'próximo_acompanha': f.proximo_followup || null,
+      observação: f.observacao,
+      _em: new Date().toISOString(),
+    }
+  }
+
+  // Mapeia linha do banco de volta para o form
+  function bancoParaForm(row) {
+    return {
+      nome: row.nome || '',
+      empresa: row.empresa || '',
+      whatsapp: row.WhatsApp || '',
+      email: row['e-mail'] || '',
+      cargo: row.carga || '',
+      servico: row['serviço'] || '',
+      valor: String(row.valentia || ''),
+      etapa: row.etapa || 'prospeccao',
+      temperatura: row.temperatura || 'morno',
+      proximo_followup: row['próximo_acompanha'] || '',
+      observacao: row.observação || '',
+    }
+  }
+
+  // Normaliza lead para exibição no kanban
+  function normalizar(row) {
+    return {
+      ...row,
+      whatsapp: row.WhatsApp,
+      email: row['e-mail'],
+      cargo: row.carga,
+      servico: row['serviço'],
+      valor: row.valentia || 0,
+      proximo_followup: row['próximo_acompanha'],
+      observacao: row.observação,
+    }
+  }
+
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('crm_leads').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
-    setLeads(data || [])
+    const { data } = await supabase.from('leads_crm').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
+    setLeads((data || []).map(normalizar))
     setLoading(false)
   }
 
   async function salvar() {
-    const dados = { ...form, empresa_id: empresaId, valor: parseFloat(form.valor) || 0, atualizado_em: new Date().toISOString() }
-    if (editando) await supabase.from('crm_leads').update(dados).eq('id', editando.id)
-    else await supabase.from('crm_leads').insert(dados)
+    const dados = formParaBanco(form)
+    if (editando) await supabase.from('leads_crm').update(dados).eq('id', editando.id)
+    else await supabase.from('leads_crm').insert(dados)
     setModal(false); setEditando(null)
     setForm({ nome: '', empresa: '', whatsapp: '', email: '', cargo: '', servico: '', valor: '', etapa: 'prospeccao', temperatura: 'morno', proximo_followup: '', observacao: '' })
     await load()
@@ -158,17 +208,17 @@ function Pipeline({ empresaId }) {
 
   async function mover(id, etapa) {
     setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
-    await supabase.from('crm_leads').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
+    await supabase.from('leads_crm').update({ etapa, _em: new Date().toISOString() }).eq('id', id)
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este lead?')) return
     setLeads(ls => ls.filter(l => l.id !== id))
-    await supabase.from('crm_leads').delete().eq('id', id)
+    await supabase.from('leads_crm').delete().eq('id', id)
   }
 
   function abrir(lead = null) {
-    if (lead) { setEditando(lead); setForm({ ...lead, valor: String(lead.valor || '') }) }
+    if (lead) { setEditando(lead); setForm(bancoParaForm(lead)) }
     else { setEditando(null); setForm({ nome: '', empresa: '', whatsapp: '', email: '', cargo: '', servico: '', valor: '', etapa: 'prospeccao', temperatura: 'morno', proximo_followup: '', observacao: '' }) }
     setModal(true)
   }
