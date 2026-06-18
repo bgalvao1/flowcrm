@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
 
 // ── Paleta Flow ───────────────────────────────────────────
 const C = {
@@ -83,6 +84,7 @@ function TelaBloqueada({ empresa, onLogout }) {
 
 // ── Login ─────────────────────────────────────────────────
 function Login({ onLogin }) {
+  const [tela, setTela] = useState(() => new URLSearchParams(window.location.search).has('reset') ? 'reset' : 'login')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -96,6 +98,28 @@ function Login({ onLogin }) {
     if (data.senha !== senha) { setErro('Senha incorreta.'); return }
     onLogin(data)
   }
+
+  if (tela === 'reset') return (
+    <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
+      <div style={{ ...S.card, width: '100%', maxWidth: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', padding: '36px 28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 800 }}>Flow<span style={{ color: C.accent }}>CRM</span></div>
+        </div>
+        <RedefinirSenha tabela="crm_empresas" tema="dark" onConcluido={() => setTela('login')} />
+      </div>
+    </div>
+  )
+
+  if (tela === 'esqueceu') return (
+    <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
+      <div style={{ ...S.card, width: '100%', maxWidth: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', padding: '36px 28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 800 }}>Flow<span style={{ color: C.accent }}>CRM</span></div>
+        </div>
+        <EsqueceuSenha tabela="crm_empresas" tema="dark" onVoltar={() => setTela('login')} />
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
@@ -114,9 +138,15 @@ function Login({ onLogin }) {
             <label style={S.lbl}>E-mail</label>
             <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="empresa@email.com" style={S.inp} autoFocus />
           </div>
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8 }}>
             <label style={S.lbl}>Senha</label>
             <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={S.inp} />
+          </div>
+          <div style={{ textAlign: 'right', marginBottom: 16 }}>
+            <button type="button" onClick={() => setTela('esqueceu')}
+              style={{ background: 'none', border: 'none', color: C.accent, cursor: 'pointer', fontSize: 11, padding: 0 }}>
+              Esqueceu a senha?
+            </button>
           </div>
           {erro && <div style={{ fontSize: 11, color: C.red, marginBottom: 14, background: 'rgba(232,100,91,0.08)', border: '1px solid rgba(232,100,91,0.2)', borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
           <button type="submit" disabled={loading} style={{ ...S.btn, width: '100%', padding: 11, fontSize: 13 }}>

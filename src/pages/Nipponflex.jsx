@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
 
 // ── Paleta Nipponflex ─────────────────────────────────────
 const NF = {
@@ -31,6 +32,7 @@ const lbl = { fontSize: 10, color: NF.text3, display: 'block', marginBottom: 4, 
 // ── Tela de Login ─────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [aba, setAba] = useState('login') // login | cadastro
+  const [tela, setTela] = useState(() => new URLSearchParams(window.location.search).has('reset') ? 'reset' : 'login')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [nome, setNome] = useState('')
@@ -125,16 +127,26 @@ function LoginScreen({ onLogin }) {
           </div>
         )}
 
+        {/* RESET / ESQUECEU SENHA */}
+        {tela === 'reset' && <RedefinirSenha tabela="nipponflex_distribuidores" tema="blue" onConcluido={() => setTela('login')} />}
+        {tela === 'esqueceu' && <EsqueceuSenha tabela="nipponflex_distribuidores" tema="blue" onVoltar={() => setTela('login')} />}
+
         {/* LOGIN */}
-        {aba === 'login' && (
+        {tela === 'login' && aba === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>E-mail</label>
               <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com" style={inp} autoFocus />
             </div>
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 8 }}>
               <label style={lbl}>Senha</label>
               <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={inp} />
+            </div>
+            <div style={{ textAlign: 'right', marginBottom: 16 }}>
+              <button type="button" onClick={() => setTela('esqueceu')}
+                style={{ background: 'none', border: 'none', color: NF.accent, cursor: 'pointer', fontSize: 11, padding: 0 }}>
+                Esqueceu a senha?
+              </button>
             </div>
             {erro && <div style={{ fontSize: 11, color: NF.red, marginBottom: 14, background: 'rgba(232,90,79,0.08)', border: `1px solid rgba(232,90,79,0.2)`, borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
             <button type="submit" disabled={loading}
