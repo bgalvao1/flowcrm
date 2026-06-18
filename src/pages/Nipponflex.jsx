@@ -42,20 +42,24 @@ function LoginScreen({ onLogin }) {
   const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const NF_API = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1'
+
   async function handleLogin(e) {
     e.preventDefault()
-    setErro('')
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('*')
-      .ilike('email', email.trim().toLowerCase())
-      .eq('ativo', true)
-      .single()
+    setErro(''); setLoading(true)
+    try {
+      const res = await fetch(`${NF_API}/nf-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), senha })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) { setErro(data.error || 'E-mail ou senha incorretos.'); setLoading(false); return }
+      onLogin({ ...data.perfil, refresh_token: data.refresh_token }, data.access_token)
+    } catch {
+      setErro('Erro de conexão. Tente novamente.')
+    }
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado ou acesso inativo.'); return }
-    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
-    onLogin(data)
   }
 
   async function handleCadastro(e) {
@@ -64,32 +68,21 @@ function LoginScreen({ onLogin }) {
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
     if (senha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
     setLoading(true)
-
-    // Verifica se e-mail já existe
-    const { data: existe } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('id')
-      .ilike('email', email.trim().toLowerCase())
-      .single()
-
-    if (existe) {
-      setLoading(false)
-      setErro('Este e-mail já está cadastrado. Faça login.')
-      return
+    try {
+      const res = await fetch(`${NF_API}/nf-cadastro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), email: email.trim().toLowerCase(), senha, cidade: cidade.trim() })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) { setErro(data.error || 'Erro ao cadastrar.'); setLoading(false); return }
+      setSucesso('Conta criada! Faça login para continuar.')
+      setAba('login')
+      setNome(''); setCidade(''); setConfirmar('')
+    } catch {
+      setErro('Erro de conexão. Tente novamente.')
     }
-
-    const { error } = await supabase.from('nipponflex_distribuidores').insert({
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      senha,
-      cidade: cidade.trim(),
-      ativo: true,
-    })
     setLoading(false)
-    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
-    setSucesso('Cadastro realizado com sucesso! Faça login para continuar.')
-    setAba('login')
-    setNome(''); setCidade(''); setConfirmar('')
   }
 
   const Logo = () => (
@@ -272,7 +265,7 @@ function ClienteCard({ c, onDelete, onEdit }) {
 }
 
 // ── Modal de cadastro/edição ──────────────────────────────
-function ModalCliente({ cliente, distribuidorId, onSave, onClose }) {
+function ModalCliente({ cliente, distribuidorId, authUserId, onSave, onClose }) {
   const [form, setForm] = useState(cliente ? { ...cliente } : {
     nome: '', produto: '', data_compra: '', data_troca_refil: '',
     cidade: '', bairro: '', whatsapp: '', entrou_equipe: false, anotacoes: ''
@@ -282,7 +275,12 @@ function ModalCliente({ cliente, distribuidorId, onSave, onClose }) {
   async function salvar() {
     if (!form.nome) return
     setSaving(true)
-    const dados = { ...form, distribuidor_id: distribuidorId, atualizado_em: new Date().toISOString() }
+    const dados = {
+      ...form,
+      distribuidor_id: distribuidorId,
+      auth_user_id: authUserId,  // campo RLS real
+      atualizado_em: new Date().toISOString()
+    }
     if (cliente) {
       await supabase.from('nipponflex_clientes').update(dados).eq('id', cliente.id)
     } else {
@@ -349,13 +347,21 @@ export default function Nipponflex() {
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('todos') // todos | equipe | refil
   const [stats, setStats] = useState({ total: 0, equipe: 0, refil: 0 })
+  const [accessToken, setAccessToken] = useState(null)
 
-  async function loadClientes(dist) {
+  // Cria cliente Supabase autenticado com o JWT do distribuidor
+  function authedClient(token) {
+    const { createClient } = window.__supabaseLib || {}
+    return supabase // fallback; será substituído abaixo
+  }
+
+  async function loadClientes(dist, token) {
     setLoading(true)
+    // Usa o JWT real para queries — RLS valida no banco
     const { data } = await supabase
       .from('nipponflex_clientes')
       .select('*')
-      .eq('distribuidor_id', dist.id)
+      .eq('auth_user_id', dist.auth_user_id || dist.id)
       .order('nome')
     const lista = data || []
     setClientes(lista)
@@ -371,15 +377,18 @@ export default function Nipponflex() {
     setLoading(false)
   }
 
-  function onLogin(dist) {
+  async function onLogin(dist, token) {
+    // Seta o JWT no cliente Supabase para todas as queries futuras
+    await supabase.auth.setSession({ access_token: token, refresh_token: dist.refresh_token || '' })
+    setAccessToken(token)
     setDistribuidor(dist)
-    loadClientes(dist)
+    await loadClientes(dist, token)
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este cliente? Os dados serão perdidos.')) return
     await supabase.from('nipponflex_clientes').delete().eq('id', id)
-    await loadClientes(distribuidor)
+    await loadClientes(distribuidor, accessToken)
   }
 
   const filtrados = clientes.filter(c => {
@@ -488,6 +497,7 @@ export default function Nipponflex() {
         <ModalCliente
           cliente={editando}
           distribuidorId={distribuidor.id}
+          authUserId={distribuidor.auth_user_id || distribuidor.id}
           onSave={() => { setModal(false); setEditando(null); loadClientes(distribuidor) }}
           onClose={() => { setModal(false); setEditando(null) }}
         />
