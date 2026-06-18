@@ -42,49 +42,37 @@ function LoginScreen({ onLogin }) {
   const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const NF_AUTH = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/nf-auth'
-
   async function handleLogin(e) {
     e.preventDefault()
     setErro(''); setLoading(true)
-    try {
-      const res = await fetch(NF_AUTH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email: email.trim().toLowerCase(), senha })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.ok) { setErro(data.error || 'E-mail ou senha incorretos.'); setLoading(false); return }
-      // Seta sessão JWT no cliente Supabase
-      await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
-      onLogin(data.perfil, data.access_token)
-    } catch {
-      setErro('Erro de conexão. Tente novamente.')
-    }
+    const { data, error } = await supabase
+      .from('nipponflex_distribuidores')
+      .select('*')
+      .ilike('email', email.trim().toLowerCase())
+      .eq('ativo', true)
+      .single()
     setLoading(false)
+    if (error || !data) { setErro('E-mail não encontrado.'); return }
+    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
+    onLogin(data)
   }
 
   async function handleCadastro(e) {
     e.preventDefault()
     setErro('')
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
-    if (senha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (senha.length < 6) { setErro('Senha deve ter ao menos 6 caracteres.'); return }
     setLoading(true)
-    try {
-      const res = await fetch(NF_AUTH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cadastro', nome: nome.trim(), email: email.trim().toLowerCase(), senha, cidade: cidade.trim() })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.ok) { setErro(data.error || 'Erro ao cadastrar.'); setLoading(false); return }
-      setSucesso('Conta criada! Faça login para continuar.')
-      setAba('login')
-      setNome(''); setCidade(''); setConfirmar('')
-    } catch {
-      setErro('Erro de conexão. Tente novamente.')
-    }
+    const { data: dup } = await supabase.from('nipponflex_distribuidores').select('id').ilike('email', email.trim().toLowerCase()).single()
+    if (dup) { setErro('E-mail já cadastrado. Faça login.'); setLoading(false); return }
+    const { error } = await supabase.from('nipponflex_distribuidores').insert({
+      nome: nome.trim(), email: email.trim().toLowerCase(),
+      senha, cidade: cidade.trim(), ativo: true,
+    })
     setLoading(false)
+    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
+    setSucesso('Conta criada! Faça login.')
+    setAba('login'); setNome(''); setCidade(''); setConfirmar('')
   }
 
   const Logo = () => (
@@ -376,9 +364,9 @@ export default function Nipponflex() {
     setLoading(false)
   }
 
-  async function onLogin(dist, token) {
+  async function onLogin(dist) {
     setDistribuidor(dist)
-    await loadClientes(dist, token)
+    await loadClientes(dist)
   }
 
   async function deletar(id) {
