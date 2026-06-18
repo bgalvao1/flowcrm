@@ -42,22 +42,22 @@ function LoginScreen({ onLogin }) {
   const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const NF_API = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1'
+  const NF_AUTH = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/nf-auth'
 
   async function handleLogin(e) {
     e.preventDefault()
     setErro(''); setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('nipponflex_distribuidores')
-        .select('*')
-        .ilike('email', email.trim().toLowerCase())
-        .eq('ativo', true)
-        .single()
-
-      if (error || !data) { setErro('E-mail não encontrado ou acesso inativo.'); setLoading(false); return }
-      if (data.senha !== senha) { setErro('Senha incorreta.'); setLoading(false); return }
-      onLogin(data, null)
+      const res = await fetch(NF_AUTH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email: email.trim().toLowerCase(), senha })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) { setErro(data.error || 'E-mail ou senha incorretos.'); setLoading(false); return }
+      // Seta sessão JWT no cliente Supabase
+      await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+      onLogin(data.perfil, data.access_token)
     } catch {
       setErro('Erro de conexão. Tente novamente.')
     }
@@ -70,27 +70,21 @@ function LoginScreen({ onLogin }) {
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
     if (senha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
     setLoading(true)
-
-    const { data: existe } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('id')
-      .ilike('email', email.trim().toLowerCase())
-      .single()
-
-    if (existe) { setErro('Este e-mail já está cadastrado. Faça login.'); setLoading(false); return }
-
-    const { error } = await supabase.from('nipponflex_distribuidores').insert({
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      senha,
-      cidade: cidade.trim(),
-      ativo: true,
-    })
+    try {
+      const res = await fetch(NF_AUTH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cadastro', nome: nome.trim(), email: email.trim().toLowerCase(), senha, cidade: cidade.trim() })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) { setErro(data.error || 'Erro ao cadastrar.'); setLoading(false); return }
+      setSucesso('Conta criada! Faça login para continuar.')
+      setAba('login')
+      setNome(''); setCidade(''); setConfirmar('')
+    } catch {
+      setErro('Erro de conexão. Tente novamente.')
+    }
     setLoading(false)
-    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
-    setSucesso('Conta criada! Faça login para continuar.')
-    setAba('login')
-    setNome(''); setCidade(''); setConfirmar('')
   }
 
   const Logo = () => (
@@ -365,30 +359,24 @@ export default function Nipponflex() {
 
   async function loadClientes(dist, token) {
     setLoading(true)
-    // Usa o JWT real para queries — RLS valida no banco
     const { data } = await supabase
       .from('nipponflex_clientes')
       .select('*')
-      .eq('auth_user_id', dist.auth_user_id || dist.id)
+      .eq('distribuidor_id', dist.id)
       .order('nome')
-    const lista = data || []
-    setClientes(lista)
-
+    setClientes(data || [])
     const hoje = new Date()
+    const lista = data || []
     const refil7 = lista.filter(c => {
       if (!c.data_troca_refil) return false
       const d = new Date(c.data_troca_refil + 'T12:00:00')
       return Math.ceil((d - hoje) / (1000 * 60 * 60 * 24)) <= 7
     }).length
-
     setStats({ total: lista.length, equipe: lista.filter(c => c.entrou_equipe).length, refil: refil7 })
     setLoading(false)
   }
 
   async function onLogin(dist, token) {
-    // Seta o JWT no cliente Supabase para todas as queries futuras
-    await supabase.auth.setSession({ access_token: token, refresh_token: dist.refresh_token || '' })
-    setAccessToken(token)
     setDistribuidor(dist)
     await loadClientes(dist, token)
   }
