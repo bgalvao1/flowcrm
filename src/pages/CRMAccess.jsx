@@ -141,24 +141,24 @@ function Pipeline({ empresaId }) {
   useEffect(() => { load() }, [empresaId])
 
   // Mapeia campos do form (nomes amigáveis) para colunas reais do banco
-  function formParaBanco(f) {
-    return {
-      empresa_id: empresaId,
-      nome: f.nome,
-      empresa: f.empresa,
-      WhatsApp: f.whatsapp,
-      'e-mail': f.email,
-      carga: f.cargo,
-      'serviço': f.servico,
-      valentia: parseFloat(f.valor) || 0,
-      etapa: f.etapa,
-      temperatura: f.temperatura,
-      'próximo_acompanha': f.proximo_followup || null,
-      observação: f.observacao,
-      _em: new Date().toISOString(),
-    }
+// Mapeia campos do form (nomes amigáveis) para colunas reais do banco
+function formParaBanco(f) {
+  return {
+    empresa_id: empresaId,
+    nome: f.nome,
+    empresa: f.empresa,
+    whatsapp: f.whatsapp,
+    email: f.email,
+    cargo: f.cargo,
+    servico: f.servico,
+    valor: parseFloat(f.valor) || 0,
+    etapa: f.etapa,
+    temperatura: f.temperatura,
+    proximo_followup: f.proximo_followup || null,
+    observacao: f.observacao,
+    atualizado_em: new Date().toISOString(),
   }
-
+}
   // Mapeia linha do banco de volta para o form
   function bancoParaForm(row) {
     return {
