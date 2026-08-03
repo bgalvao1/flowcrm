@@ -39,9 +39,14 @@ export default function App() {
   const [session, setSession] = useState(undefined)
 
   useEffect(() => {
-    authAPI.getSession().then(({ data }) => setSession(data.session))
+    let done = false
+    const finish = (s) => { if (!done) { done = true; setSession(s) } }
+    authAPI.getSession()
+      .then(({ data }) => finish(data.session))
+      .catch(() => finish(null))
+    const timeout = setTimeout(() => finish(null), 5000)
     const { data: { subscription } } = authAPI.onAuthChange((_event, s) => setSession(s))
-    return () => subscription.unsubscribe()
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
   }, [])
 
   return (
