@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
 
+const NF_URL = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/nf-portal'
+
 // ── Paleta Nipponflex ─────────────────────────────────────
 const NF = {
   bg0: '#05080A',
@@ -42,19 +44,31 @@ function LoginScreen({ onLogin }) {
   const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
+  async function chamarPortal(corpo) {
+    const res = await fetch(NF_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+    const json = await res.json().catch(() => ({}))
+    return { ok: res.ok, ...json }
+  }
+
   async function handleLogin(e) {
     e.preventDefault()
     setErro(''); setLoading(true)
-    const { data, error } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('*')
-      .ilike('email', email.trim().toLowerCase())
-      .eq('ativo', true)
-      .single()
+    let r
+    try {
+      r = await chamarPortal({ action: 'login', email: email.trim().toLowerCase(), senha })
+    } catch {
+      setLoading(false); setErro('Erro de conexão. Tente novamente.'); return
+    }
+    if (!r.ok || !r.access_token) { setLoading(false); setErro(r.error || 'E-mail ou senha incorretos.'); return }
+    // sessão autenticada: o banco só devolve os clientes deste distribuidor
+    const { error: sErr } = await supabase.auth.setSession({ access_token: r.access_token, refresh_token: r.refresh_token })
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado.'); return }
-    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
-    onLogin(data)
+    if (sErr) { setErro('Não foi possível iniciar a sessão. Tente novamente.'); return }
+    onLogin(r.perfil)
   }
 
   async function handleCadastro(e) {
@@ -63,14 +77,14 @@ function LoginScreen({ onLogin }) {
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
     if (senha.length < 6) { setErro('Senha deve ter ao menos 6 caracteres.'); return }
     setLoading(true)
-    const { data: dup } = await supabase.from('nipponflex_distribuidores').select('id').ilike('email', email.trim().toLowerCase()).single()
-    if (dup) { setErro('E-mail já cadastrado. Faça login.'); setLoading(false); return }
-    const { error } = await supabase.from('nipponflex_distribuidores').insert({
-      nome: nome.trim(), email: email.trim().toLowerCase(),
-      senha, cidade: cidade.trim(), ativo: true,
-    })
+    let r
+    try {
+      r = await chamarPortal({ action: 'cadastro', nome: nome.trim(), email: email.trim().toLowerCase(), senha, cidade: cidade.trim() })
+    } catch {
+      setLoading(false); setErro('Erro de conexão. Tente novamente.'); return
+    }
     setLoading(false)
-    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
+    if (!r.ok) { setErro(r.error || 'Erro ao cadastrar. Tente novamente.'); return }
     setSucesso('Conta criada! Faça login.')
     setAba('login'); setNome(''); setCidade(''); setConfirmar('')
   }
@@ -268,7 +282,6 @@ function ModalCliente({ cliente, distribuidorId, authUserId, onSave, onClose }) 
     const dados = {
       ...form,
       distribuidor_id: distribuidorId,
-      auth_user_id: authUserId,  // campo RLS real
       atualizado_em: new Date().toISOString()
     }
     if (cliente) {
@@ -406,7 +419,7 @@ export default function Nipponflex() {
             style={{ background: NF.grad, border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
             + Novo cliente
           </button>
-          <button onClick={() => setDistribuidor(null)} style={{ background: 'none', border: 'none', color: NF.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
+          <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); setDistribuidor(null); setClientes([]) }} style={{ background: 'none', border: 'none', color: NF.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
         </div>
       </div>
 
