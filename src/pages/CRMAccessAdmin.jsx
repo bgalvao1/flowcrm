@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { toast } from '../lib/toast.js'
 
+const CRIAR_URL = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/admin-criar-empresa'
 const PLANOS = { '1mes': { label: '1 mês', dias: 30, valor: 69.90 }, '3meses': { label: '3 meses', dias: 90, valor: 97.00 } }
 
 export default function CRMAccessAdmin() {
@@ -23,16 +24,23 @@ export default function CRMAccessAdmin() {
 
   async function salvar() {
     if (!form.nome || !form.email || !form.senha) return
+    if (form.senha.length < 6) { toast.error('A senha deve ter ao menos 6 caracteres'); return }
     setSaving(true)
-    const plano = PLANOS[form.plano]
-    const venc = new Date()
-    venc.setDate(venc.getDate() + plano.dias)
-    const { error } = await supabase.from('crm_empresas').insert({
-      ...form, valor: plano.valor, status: 'ativo',
-      vencimento: venc.toISOString().split('T')[0],
-    })
+    try {
+      const { data: sess } = await supabase.auth.getSession()
+      const token = sess?.session?.access_token
+      if (!token) { toast.error('Sessão expirada. Entre novamente.'); setSaving(false); return }
+      const res = await fetch(CRIAR_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(json.error || 'Erro ao salvar'); setSaving(false); return }
+    } catch {
+      toast.error('Erro de conexão. Tente novamente.'); setSaving(false); return
+    }
     setSaving(false)
-    if (error) { toast.error('E-mail já cadastrado ou erro ao salvar'); return }
     toast.success('Empresa adicionada e acesso liberado!')
     setModal(false); setForm({ nome: '', email: '', senha: '', plano: '1mes' })
     await load()
@@ -42,24 +50,26 @@ export default function CRMAccessAdmin() {
     const plano = PLANOS[empresa.plano || '1mes']
     const venc = new Date()
     venc.setDate(venc.getDate() + plano.dias)
-    await supabase.from('crm_empresas').update({
+    const { error } = await supabase.from('crm_empresas').update({
       status: 'ativo',
       vencimento: venc.toISOString().split('T')[0],
-      pix_confirmado: true,
     }).eq('id', empresa.id)
+    if (error) { toast.error('Erro ao renovar acesso'); return }
     toast.success(`Acesso de ${empresa.nome} renovado por ${plano.label}!`)
     setModalPix(null)
     await load()
   }
 
   async function bloquear(id, nome) {
-    await supabase.from('crm_empresas').update({ status: 'bloqueado' }).eq('id', id)
+    const { error } = await supabase.from('crm_empresas').update({ status: 'bloqueado' }).eq('id', id)
+    if (error) { toast.error('Erro ao bloquear'); return }
     toast.success(`${nome} bloqueado`)
     await load()
   }
 
   async function alterarPlano(id, plano) {
-    await supabase.from('crm_empresas').update({ plano, valor: PLANOS[plano].valor }).eq('id', id)
+    const { error } = await supabase.from('crm_empresas').update({ plano, valor: PLANOS[plano].valor }).eq('id', id)
+    if (error) { toast.error('Erro ao atualizar plano'); return }
     toast.success('Plano atualizado')
     await load()
   }
@@ -71,7 +81,7 @@ export default function CRMAccessAdmin() {
       <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 className="page-title">Acesso CRM — Empresas</h1>
-          <div className="page-sub">Nova Energia · FBS Consultoria e futuros clientes</div>
+          <div className="page-sub">Empresas clientes do CRM</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a href="/acesso" target="_blank" className="btn btn-ghost" style={{ fontSize: 11 }}>↗ Ver portal</a>
@@ -179,7 +189,7 @@ export default function CRMAccessAdmin() {
               </div>
               <div>
                 <label className="label">Senha *</label>
-                <input className="input" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} placeholder="Senha de acesso" />
+                <input className="input" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               </div>
               <div style={{ gridColumn: '1/-1' }}>
                 <label className="label">Plano</label>
