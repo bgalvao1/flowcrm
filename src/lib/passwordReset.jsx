@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from './supabase.js'
 
-const EDGE_URL = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/send-reset-email'
+const FN_BASE = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1'
+const EDGE_URL = `${FN_BASE}/send-reset-email`
+const RESET_URL = `${FN_BASE}/reset-password`
+
+// Chama a Edge Function de redefinição (validação e troca de senha ficam no servidor)
+async function chamarReset(body) {
+  const res = await fetch(RESET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  let json = {}
+  try { json = await res.json() } catch { /* ignora */ }
+  return { ok: res.ok, ...json }
+}
 
 // ── Solicitar reset ───────────────────────────────────────
 export function EsqueceuSenha({ tabela, onVoltar, tema = 'dark' }) {
@@ -103,17 +116,11 @@ export function RedefinirSenha({ tabela, onConcluido, tema = 'dark' }) {
   }, [])
 
   async function validarToken(t) {
-    const { data } = await supabase
-      .from('password_reset_tokens')
-      .select('*')
-      .eq('token', t)
-      .eq('tabela', tabela)
-      .eq('usado', false)
-      .single()
-    if (!data || new Date(data.expira_em) < new Date()) {
+    try {
+      const r = await chamarReset({ action: 'validate', token: t, tabela })
+      setTokenValido(!!r.valid)
+    } catch {
       setTokenValido(false)
-    } else {
-      setTokenValido(true)
     }
   }
 
@@ -124,25 +131,14 @@ export function RedefinirSenha({ tabela, onConcluido, tema = 'dark' }) {
     if (novaSenha.length < 6) { setErro('A senha deve ter ao menos 6 caracteres.'); return }
     setLoading(true)
 
-    // Busca o e-mail pelo token
-    const { data: tkn } = await supabase
-      .from('password_reset_tokens')
-      .select('email')
-      .eq('token', token)
-      .single()
+    let r
+    try {
+      r = await chamarReset({ action: 'confirm', token, tabela, senha: novaSenha })
+    } catch {
+      setErro('Erro de conexão. Tente novamente.'); setLoading(false); return
+    }
 
-    if (!tkn) { setErro('Token inválido.'); setLoading(false); return }
-
-    // Atualiza senha na tabela correta
-    const { error } = await supabase
-      .from(tabela)
-      .update({ senha: novaSenha })
-      .ilike('email', tkn.email)
-
-    if (error) { setErro('Erro ao atualizar. Tente novamente.'); setLoading(false); return }
-
-    // Marca token como usado
-    await supabase.from('password_reset_tokens').update({ usado: true }).eq('token', token)
+    if (!r.ok) { setErro(r.error || 'Erro ao atualizar. Tente novamente.'); setLoading(false); return }
 
     // Limpa URL
     window.history.replaceState({}, '', window.location.pathname)
