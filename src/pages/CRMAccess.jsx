@@ -624,7 +624,7 @@ export default function CRMAccess() {
   function onLogin(emp) {
     // Verifica vencimento
     const venc = emp.vencimento ? new Date(emp.vencimento + 'T23:59:59') : null
-    if (emp.status === 'bloqueado' || (venc && venc < new Date())) {
+    if (emp.status === 'bloqueado' || (emp.plano !== 'ilimitado' && venc && venc < new Date())) {
       setEmpresa({ ...emp, status: 'bloqueado' })
     } else {
       setEmpresa(emp)
@@ -666,7 +666,12 @@ export default function CRMAccess() {
               ⚠️ Plano vence em {diasRestantes} dia{diasRestantes !== 1 ? 's' : ''}
             </div>
           )}
-          {diasRestantes !== null && diasRestantes > 10 && (
+          {empresa.plano === 'ilimitado' && (
+            <div style={{ fontSize: 11, color: C.text3 }}>
+              Plano: <span style={{ color: C.accent }}>Ilimitado</span> · sem vencimento
+            </div>
+          )}
+          {empresa.plano !== 'ilimitado' && diasRestantes !== null && diasRestantes > 10 && (
             <div style={{ fontSize: 11, color: C.text3 }}>
               Plano: <span style={{ color: C.accent }}>{empresa.plano === '3meses' ? '3 meses' : '1 mês'}</span> · vence {new Date(empresa.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
             </div>
