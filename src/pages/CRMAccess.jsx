@@ -92,10 +92,22 @@ function Login({ onLogin }) {
 
   async function handleLogin(e) {
     e.preventDefault(); setErro(''); setLoading(true)
-    const { data, error } = await supabase.from('crm_empresas').select('*').ilike('email', email.trim().toLowerCase()).single()
+    // 1) Autentica no Supabase Auth (a senha nunca mais é comparada no navegador)
+    const { data: auth, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha })
+    if (authError || !auth?.user) { setLoading(false); setErro('E-mail ou senha incorretos.'); return }
+    // 2) A empresa vem do token (app_metadata.empresa_id), definido pelo administrador
+    const empresaId = auth.user.app_metadata?.empresa_id
+    if (!empresaId) {
+      await supabase.auth.signOut({ scope: 'local' })
+      setLoading(false); setErro('Esta conta não tem acesso ao portal empresarial.'); return
+    }
+    // 3) Carrega o cadastro da empresa (RLS: só a própria empresa; sem a coluna senha)
+    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento').eq('id', empresaId).single()
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado.'); return }
-    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
+    if (error || !data) {
+      await supabase.auth.signOut({ scope: 'local' })
+      setErro('Cadastro da empresa não encontrado.'); return
+    }
     onLogin(data)
   }
 
@@ -194,43 +206,29 @@ function formParaBanco(f) {
     return {
       nome: row.nome || '',
       empresa: row.empresa || '',
-      whatsapp: row.WhatsApp || '',
-      email: row['e-mail'] || '',
-      cargo: row.carga || '',
-      servico: row['serviço'] || '',
-      valor: String(row.valentia || ''),
+      whatsapp: row.whatsapp || '',
+      email: row.email || '',
+      cargo: row.cargo || '',
+      servico: row.servico || '',
+      valor: String(row.valor || ''),
       etapa: row.etapa || 'prospeccao',
       temperatura: row.temperatura || 'morno',
-      proximo_followup: row['próximo_acompanha'] || '',
-      observacao: row.observação || '',
-    }
-  }
-
-  // Normaliza lead para exibição no kanban
-  function normalizar(row) {
-    return {
-      ...row,
-      whatsapp: row.WhatsApp,
-      email: row['e-mail'],
-      cargo: row.carga,
-      servico: row['serviço'],
-      valor: row.valentia || 0,
-      proximo_followup: row['próximo_acompanha'],
-      observacao: row.observação,
+      proximo_followup: row.proximo_followup || '',
+      observacao: row.observacao || '',
     }
   }
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('leads_crm').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
-    setLeads((data || []).map(normalizar))
+    const { data } = await supabase.from('crm_leads').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
+    setLeads(data || [])
     setLoading(false)
   }
 
   async function salvar() {
     const dados = formParaBanco(form)
-    if (editando) await supabase.from('leads_crm').update(dados).eq('id', editando.id)
-    else await supabase.from('leads_crm').insert(dados)
+    if (editando) await supabase.from('crm_leads').update(dados).eq('id', editando.id)
+    else await supabase.from('crm_leads').insert(dados)
     setModal(false); setEditando(null)
     setForm({ nome: '', empresa: '', whatsapp: '', email: '', cargo: '', servico: '', valor: '', etapa: 'prospeccao', temperatura: 'morno', proximo_followup: '', observacao: '' })
     await load()
@@ -238,13 +236,13 @@ function formParaBanco(f) {
 
   async function mover(id, etapa) {
     setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
-    await supabase.from('leads_crm').update({ etapa, _em: new Date().toISOString() }).eq('id', id)
+    await supabase.from('crm_leads').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este lead?')) return
     setLeads(ls => ls.filter(l => l.id !== id))
-    await supabase.from('leads_crm').delete().eq('id', id)
+    await supabase.from('crm_leads').delete().eq('id', id)
   }
 
   function abrir(lead = null) {
@@ -633,8 +631,13 @@ export default function CRMAccess() {
     }
   }
 
+  async function sair() {
+    await supabase.auth.signOut({ scope: 'local' })
+    setEmpresa(null)
+  }
+
   if (!empresa) return <Login onLogin={onLogin} />
-  if (empresa.status === 'bloqueado') return <TelaBloqueada empresa={empresa} onLogout={() => setEmpresa(null)} />
+  if (empresa.status === 'bloqueado') return <TelaBloqueada empresa={empresa} onLogout={sair} />
 
   const diasRestantes = empresa.vencimento
     ? Math.ceil((new Date(empresa.vencimento + 'T23:59:59') - new Date()) / (1000 * 60 * 60 * 24))
@@ -668,7 +671,7 @@ export default function CRMAccess() {
               Plano: <span style={{ color: C.accent }}>{empresa.plano === '3meses' ? '3 meses' : '1 mês'}</span> · vence {new Date(empresa.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
             </div>
           )}
-          <button onClick={() => setEmpresa(null)} style={{ background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
+          <button onClick={sair} style={{ background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
         </div>
       </div>
 
