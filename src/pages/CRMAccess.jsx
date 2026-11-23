@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { toast } from '../lib/toast.js'
 import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
 import { initGTM, initGA4, trackEvent } from '../lib/analytics.js'
+import * as googleCal from '../lib/googleCalendarTenant.js'
 
 // ── Paleta Flow ───────────────────────────────────────────
 const C = {
@@ -531,21 +533,53 @@ function Agenda({ empresaId }) {
   const [leads, setLeads] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ titulo: '', descricao: '', inicio: '', fim: '', tipo: 'reuniao', lead_id: '' })
+  const [googleConfig, setGoogleConfig] = useState(null)
+  const [eventosGoogle, setEventosGoogle] = useState([])
+  const [sincronizando, setSincronizando] = useState(false)
   const TIPOS = { reuniao: '🤝', ligacao: '📞', visita: '🚗', apresentacao: '📊', outro: '📌' }
 
   useEffect(() => {
-    const now = new Date().toISOString()
-    supabase.from('crm_eventos').select('*').eq('empresa_id', empresaId).gte('inicio', now).order('inicio').limit(30).then(({ data }) => setEventos(data || []))
+    carregarEventos()
     supabase.from('crm_leads').select('id, nome, empresa').eq('empresa_id', empresaId).order('nome').then(({ data }) => setLeads(data || []))
+    carregarGoogle()
   }, [empresaId])
+
+  async function carregarEventos() {
+    const now = new Date().toISOString()
+    const { data } = await supabase.from('crm_eventos').select('*').eq('empresa_id', empresaId).gte('inicio', now).order('inicio').limit(30)
+    setEventos(data || [])
+  }
+
+  async function carregarGoogle() {
+    const cfg = await googleCal.loadConfig(empresaId)
+    setGoogleConfig(cfg)
+    if (cfg?.sync_ativo && cfg?.access_token) {
+      setEventosGoogle(await googleCal.listarEventosGoogle(cfg))
+    }
+  }
+
+  async function sincronizarGoogle() {
+    if (!googleConfig?.access_token) return
+    setSincronizando(true)
+    const r = await googleCal.sincronizar(googleConfig, eventos)
+    if (r.error) toast.error(r.error)
+    else toast.success(`${r.count} eventos sincronizados com o Google Calendar!`)
+    await carregarGoogle()
+    setSincronizando(false)
+  }
+
+  async function desconectarGoogle() {
+    if (!confirm('Desconectar o Google Calendar desta empresa?')) return
+    await googleCal.desconectar(googleConfig.id)
+    setEventosGoogle([])
+    await carregarGoogle()
+  }
 
   async function salvar() {
     if (!form.titulo || !form.inicio) return
     await supabase.from('crm_eventos').insert({ ...form, empresa_id: empresaId })
     setModal(false); setForm({ titulo: '', descricao: '', inicio: '', fim: '', tipo: 'reuniao', lead_id: '' })
-    const now = new Date().toISOString()
-    const { data } = await supabase.from('crm_eventos').select('*').eq('empresa_id', empresaId).gte('inicio', now).order('inicio').limit(30)
-    setEventos(data || [])
+    await carregarEventos()
   }
 
   async function deletar(id) {
@@ -553,12 +587,37 @@ function Agenda({ empresaId }) {
     await supabase.from('crm_eventos').delete().eq('id', id)
   }
 
+  const conectado = googleConfig?.sync_ativo && googleConfig?.access_token
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700, color: C.text1 }}>Agenda</div>
         <button style={S.btn} onClick={() => setModal(true)}>+ Novo Evento</button>
       </div>
+
+      {/* Google Calendar */}
+      <div style={{ ...S.card, display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16, borderLeft: `3px solid ${conectado ? C.green : C.border2}` }}>
+        <div style={{ fontSize: 22 }}>📅</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>Google Calendar</div>
+          <div style={{ fontSize: 11, color: conectado ? C.green : C.text3 }}>
+            {conectado ? `✓ Conectado · Último sync: ${googleConfig.ultimo_sync ? new Date(googleConfig.ultimo_sync).toLocaleString('pt-BR') : 'nunca'}` : 'Conecte para sincronizar sua agenda com o Google'}
+          </div>
+        </div>
+        {conectado ? (
+          <>
+            <button style={S.btn} onClick={sincronizarGoogle} disabled={sincronizando}>{sincronizando ? '⏳ Sincronizando...' : '🔄 Sincronizar'}</button>
+            <button style={S.btnGhost} onClick={desconectarGoogle}>Desconectar</button>
+          </>
+        ) : (
+          <button style={S.btn} onClick={() => { window.location.href = googleCal.buildAuthUrl(empresaId) }}>Conectar com Google</button>
+        )}
+      </div>
+      {conectado && eventosGoogle.length > 0 && (
+        <div style={{ fontSize: 11, color: C.text3, marginBottom: 16 }}>{eventosGoogle.length} evento(s) nos próximos 30 dias no seu Google Calendar.</div>
+      )}
+
       {eventos.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: C.text3, fontSize: 12 }}>Nenhum evento próximo.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {eventos.map(ev => {
@@ -623,6 +682,28 @@ function Agenda({ empresaId }) {
 export default function CRMAccess() {
   const [empresa, setEmpresa] = useState(null)
   const [aba, setAba] = useState('pipeline')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const empresaIdState = params.get('state')
+    if (code && empresaIdState) {
+      window.history.replaceState({}, '', '/acesso')
+      handleGoogleCallback(code, empresaIdState)
+    }
+  }, [])
+
+  async function handleGoogleCallback(code, empresaId) {
+    const r = await googleCal.handleOAuthCallback(code, empresaId)
+    if (r.error) { toast.error('Erro ao conectar Google Calendar: ' + r.error); return }
+    toast.success('Google Calendar conectado!')
+    // Restaura a sessão da empresa (persistida pelo Supabase Auth) para não exigir login de novo
+    const { data: sess } = await supabase.auth.getSession()
+    if (sess?.session) {
+      const { data } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento, gtm_container_id, ga4_measurement_id').eq('id', empresaId).single()
+      if (data) { onLogin(data); setAba('agenda') }
+    }
+  }
 
   function onLogin(emp) {
     // Verifica vencimento
