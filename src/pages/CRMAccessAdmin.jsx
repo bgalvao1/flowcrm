@@ -13,7 +13,7 @@ export default function CRMAccessAdmin() {
   const [modalPix, setModalPix] = useState(null)
   const [modalAnalytics, setModalAnalytics] = useState(null)
   const [form, setForm] = useState({ nome: '', email: '', senha: '', plano: '1mes' })
-  const [formAnalytics, setFormAnalytics] = useState({ gtm_container_id: '', ga4_measurement_id: '' })
+  const [formAnalytics, setFormAnalytics] = useState({ gtm_container_id: '', ga4_measurement_id: '', calendly_url: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
@@ -79,7 +79,11 @@ export default function CRMAccessAdmin() {
   }
 
   function abrirAnalytics(empresa) {
-    setFormAnalytics({ gtm_container_id: empresa.gtm_container_id || '', ga4_measurement_id: empresa.ga4_measurement_id || '' })
+    setFormAnalytics({
+      gtm_container_id: empresa.gtm_container_id || '',
+      ga4_measurement_id: empresa.ga4_measurement_id || '',
+      calendly_url: empresa.calendly_url || '',
+    })
     setModalAnalytics(empresa)
   }
 
@@ -87,9 +91,10 @@ export default function CRMAccessAdmin() {
     const { error } = await supabase.from('crm_empresas').update({
       gtm_container_id: formAnalytics.gtm_container_id.trim() || null,
       ga4_measurement_id: formAnalytics.ga4_measurement_id.trim() || null,
+      calendly_url: formAnalytics.calendly_url.trim() || null,
     }).eq('id', modalAnalytics.id)
-    if (error) { toast.error('Erro ao salvar analytics'); return }
-    toast.success('Analytics atualizado')
+    if (error) { toast.error('Erro ao salvar integrações'); return }
+    toast.success('Integrações atualizadas')
     setModalAnalytics(null)
     await load()
   }
@@ -178,7 +183,7 @@ export default function CRMAccessAdmin() {
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => abrirAnalytics(e)}>
-                        📊 Analytics
+                        ⚙️ Integrações
                       </button>
                       {e.plano !== 'ilimitado' && (
                         <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px', color: 'var(--green)', borderColor: 'rgba(61,206,140,0.3)' }} onClick={() => setModalPix(e)}>
@@ -265,13 +270,13 @@ export default function CRMAccessAdmin() {
         </div>
       )}
 
-      {/* Modal Analytics (GTM / GA4 por empresa) */}
+      {/* Modal Integrações (GTM / GA4 / Calendly por empresa) */}
       {modalAnalytics && (
         <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setModalAnalytics(null) }}>
           <div className="modal">
-            <div className="modal-title">Analytics — {modalAnalytics.nome}</div>
+            <div className="modal-title">Integrações — {modalAnalytics.nome}</div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 16 }}>
-              Container do Google Tag Manager e Measurement ID do GA4 desta empresa. Deixe em branco para não rastrear.
+              Configurações específicas desta empresa. Deixe em branco para desativar cada uma.
             </div>
             <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
               <div>
@@ -281,6 +286,10 @@ export default function CRMAccessAdmin() {
               <div>
                 <label className="label">GA4 Measurement ID</label>
                 <input className="input" value={formAnalytics.ga4_measurement_id} onChange={e => setFormAnalytics({...formAnalytics, ga4_measurement_id: e.target.value})} placeholder="G-XXXXXXX" />
+              </div>
+              <div>
+                <label className="label">Link do Calendly</label>
+                <input className="input" value={formAnalytics.calendly_url} onChange={e => setFormAnalytics({...formAnalytics, calendly_url: e.target.value})} placeholder="https://calendly.com/empresa/30min" />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

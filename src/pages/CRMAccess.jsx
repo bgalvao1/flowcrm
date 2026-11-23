@@ -105,7 +105,7 @@ function Login({ onLogin }) {
       setLoading(false); setErro('Esta conta não tem acesso ao portal empresarial.'); return
     }
     // 3) Carrega o cadastro da empresa (RLS: só a própria empresa; sem a coluna senha)
-    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento, gtm_container_id, ga4_measurement_id').eq('id', empresaId).single()
+    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento, gtm_container_id, ga4_measurement_id, calendly_url').eq('id', empresaId).single()
     setLoading(false)
     if (error || !data) {
       await supabase.auth.signOut({ scope: 'local' })
@@ -528,7 +528,7 @@ function Tarefas({ empresaId }) {
 }
 
 // ── Agenda ────────────────────────────────────────────────
-function Agenda({ empresaId }) {
+function Agenda({ empresaId, calendlyUrl }) {
   const [eventos, setEventos] = useState([])
   const [leads, setLeads] = useState([])
   const [modal, setModal] = useState(false)
@@ -536,6 +536,7 @@ function Agenda({ empresaId }) {
   const [googleConfig, setGoogleConfig] = useState(null)
   const [eventosGoogle, setEventosGoogle] = useState([])
   const [sincronizando, setSincronizando] = useState(false)
+  const [mostrarCalendly, setMostrarCalendly] = useState(false)
   const TIPOS = { reuniao: '🤝', ligacao: '📞', visita: '🚗', apresentacao: '📊', outro: '📌' }
 
   useEffect(() => {
@@ -543,6 +544,15 @@ function Agenda({ empresaId }) {
     supabase.from('crm_leads').select('id, nome, empresa').eq('empresa_id', empresaId).order('nome').then(({ data }) => setLeads(data || []))
     carregarGoogle()
   }, [empresaId])
+
+  useEffect(() => {
+    if (!mostrarCalendly) return
+    if (document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]')) return
+    const script = document.createElement('script')
+    script.src = 'https://assets.calendly.com/assets/external/widget.js'
+    script.async = true
+    document.body.appendChild(script)
+  }, [mostrarCalendly])
 
   async function carregarEventos() {
     const now = new Date().toISOString()
@@ -616,6 +626,23 @@ function Agenda({ empresaId }) {
       </div>
       {conectado && eventosGoogle.length > 0 && (
         <div style={{ fontSize: 11, color: C.text3, marginBottom: 16 }}>{eventosGoogle.length} evento(s) nos próximos 30 dias no seu Google Calendar.</div>
+      )}
+
+      {/* Calendly */}
+      {calendlyUrl && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...S.card, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ fontSize: 22 }}>🗓️</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>Calendly</div>
+              <div style={{ fontSize: 11, color: C.text3 }}>Agende uma reunião direto pela sua página do Calendly</div>
+            </div>
+            <button style={S.btnGhost} onClick={() => setMostrarCalendly(v => !v)}>{mostrarCalendly ? 'Ocultar' : 'Abrir agendamento'}</button>
+          </div>
+          {mostrarCalendly && (
+            <div className="calendly-inline-widget" data-url={calendlyUrl} style={{ minWidth: 320, height: 630, marginTop: 10 }} />
+          )}
+        </div>
       )}
 
       {eventos.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: C.text3, fontSize: 12 }}>Nenhum evento próximo.</div>}
@@ -781,7 +808,7 @@ export default function CRMAccess() {
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         {aba === 'pipeline' && <Pipeline empresaId={empresa.id} />}
         {aba === 'tarefas' && <Tarefas empresaId={empresa.id} />}
-        {aba === 'agenda' && <Agenda empresaId={empresa.id} />}
+        {aba === 'agenda' && <Agenda empresaId={empresa.id} calendlyUrl={empresa.calendly_url} />}
       </div>
 
       <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 4px; height: 4px; } ::-webkit-scrollbar-thumb { background: #1A231C; border-radius: 2px; }`}</style>
