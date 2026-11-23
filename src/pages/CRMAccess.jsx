@@ -146,16 +146,16 @@ function Pipeline({ empresaId }) {
       empresa_id: empresaId,
       nome: f.nome,
       empresa: f.empresa,
-      WhatsApp: f.whatsapp,
-      'e-mail': f.email,
-      carga: f.cargo,
-      'serviço': f.servico,
-      valentia: parseFloat(f.valor) || 0,
+      whatsapp: f.whatsapp,
+      email: f.email,
+      cargo: f.cargo,
+      servico: f.servico,
+      valor: parseFloat(f.valor) || 0,
       etapa: f.etapa,
       temperatura: f.temperatura,
-      'próximo_acompanha': f.proximo_followup || null,
-      observação: f.observacao,
-      _em: new Date().toISOString(),
+      proximo_followup: f.proximo_followup || null,
+      observacao: f.observacao,
+      atualizado_em: new Date().toISOString(),
     }
   }
 
@@ -164,15 +164,15 @@ function Pipeline({ empresaId }) {
     return {
       nome: row.nome || '',
       empresa: row.empresa || '',
-      whatsapp: row.WhatsApp || '',
-      email: row['e-mail'] || '',
-      cargo: row.carga || '',
-      servico: row['serviço'] || '',
-      valor: String(row.valentia || ''),
+      whatsapp: row.whatsapp || '',
+      email: row.email || '',
+      cargo: row.cargo || '',
+      servico: row.servico || '',
+      valor: String(row.valor || ''),
       etapa: row.etapa || 'prospeccao',
       temperatura: row.temperatura || 'morno',
-      proximo_followup: row['próximo_acompanha'] || '',
-      observacao: row.observação || '',
+      proximo_followup: row.proximo_followup || '',
+      observacao: row.observacao || '',
     }
   }
 
@@ -180,13 +180,13 @@ function Pipeline({ empresaId }) {
   function normalizar(row) {
     return {
       ...row,
-      whatsapp: row.WhatsApp,
-      email: row['e-mail'],
-      cargo: row.carga,
-      servico: row['serviço'],
-      valor: row.valentia || 0,
-      proximo_followup: row['próximo_acompanha'],
-      observacao: row.observação,
+      whatsapp: row.whatsapp,
+      email: row.email,
+      cargo: row.cargo,
+      servico: row.servico,
+      valor: row.valor || 0,
+      proximo_followup: row.proximo_followup,
+      observacao: row.observacao,
     }
   }
 
@@ -208,7 +208,7 @@ function Pipeline({ empresaId }) {
 
   async function mover(id, etapa) {
     setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
-    await supabase.from('leads_crm').update({ etapa, _em: new Date().toISOString() }).eq('id', id)
+    await supabase.from('leads_crm').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
   }
 
   async function deletar(id) {
