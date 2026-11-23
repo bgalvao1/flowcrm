@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
+import { initGTM, initGA4, trackEvent } from '../lib/analytics.js'
 
 // ── Paleta Flow ───────────────────────────────────────────
 const C = {
@@ -102,7 +103,7 @@ function Login({ onLogin }) {
       setLoading(false); setErro('Esta conta não tem acesso ao portal empresarial.'); return
     }
     // 3) Carrega o cadastro da empresa (RLS: só a própria empresa; sem a coluna senha)
-    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento').eq('id', empresaId).single()
+    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento, gtm_container_id, ga4_measurement_id').eq('id', empresaId).single()
     setLoading(false)
     if (error || !data) {
       await supabase.auth.signOut({ scope: 'local' })
@@ -228,7 +229,7 @@ function formParaBanco(f) {
   async function salvar() {
     const dados = formParaBanco(form)
     if (editando) await supabase.from('crm_leads').update(dados).eq('id', editando.id)
-    else await supabase.from('crm_leads').insert(dados)
+    else { await supabase.from('crm_leads').insert(dados); trackEvent('lead_criado', { etapa: dados.etapa, valor: dados.valor }) }
     setModal(false); setEditando(null)
     setForm({ nome: '', empresa: '', whatsapp: '', email: '', cargo: '', servico: '', valor: '', etapa: 'prospeccao', temperatura: 'morno', proximo_followup: '', observacao: '' })
     await load()
@@ -237,12 +238,14 @@ function formParaBanco(f) {
   async function mover(id, etapa) {
     setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
     await supabase.from('crm_leads').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
+    trackEvent('lead_movido', { etapa })
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este lead?')) return
     setLeads(ls => ls.filter(l => l.id !== id))
     await supabase.from('crm_leads').delete().eq('id', id)
+    trackEvent('lead_excluido', {})
   }
 
   function abrir(lead = null) {
@@ -628,6 +631,9 @@ export default function CRMAccess() {
       setEmpresa({ ...emp, status: 'bloqueado' })
     } else {
       setEmpresa(emp)
+      initGTM(emp.gtm_container_id)
+      initGA4(emp.ga4_measurement_id)
+      trackEvent('login_crm', { empresa: emp.nome })
     }
   }
 

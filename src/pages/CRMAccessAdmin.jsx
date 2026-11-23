@@ -11,7 +11,9 @@ export default function CRMAccessAdmin() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [modalPix, setModalPix] = useState(null)
+  const [modalAnalytics, setModalAnalytics] = useState(null)
   const [form, setForm] = useState({ nome: '', email: '', senha: '', plano: '1mes' })
+  const [formAnalytics, setFormAnalytics] = useState({ gtm_container_id: '', ga4_measurement_id: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
@@ -73,6 +75,22 @@ export default function CRMAccessAdmin() {
     const { error } = await supabase.from('crm_empresas').update({ plano, valor: PLANOS[plano].valor }).eq('id', id)
     if (error) { toast.error('Erro ao atualizar plano'); return }
     toast.success('Plano atualizado')
+    await load()
+  }
+
+  function abrirAnalytics(empresa) {
+    setFormAnalytics({ gtm_container_id: empresa.gtm_container_id || '', ga4_measurement_id: empresa.ga4_measurement_id || '' })
+    setModalAnalytics(empresa)
+  }
+
+  async function salvarAnalytics() {
+    const { error } = await supabase.from('crm_empresas').update({
+      gtm_container_id: formAnalytics.gtm_container_id.trim() || null,
+      ga4_measurement_id: formAnalytics.ga4_measurement_id.trim() || null,
+    }).eq('id', modalAnalytics.id)
+    if (error) { toast.error('Erro ao salvar analytics'); return }
+    toast.success('Analytics atualizado')
+    setModalAnalytics(null)
     await load()
   }
 
@@ -159,6 +177,9 @@ export default function CRMAccessAdmin() {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => abrirAnalytics(e)}>
+                        📊 Analytics
+                      </button>
                       {e.plano !== 'ilimitado' && (
                         <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px', color: 'var(--green)', borderColor: 'rgba(61,206,140,0.3)' }} onClick={() => setModalPix(e)}>
                           ✓ Confirmar PIX
@@ -239,6 +260,32 @@ export default function CRMAccessAdmin() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn btn-ghost" onClick={() => setModalPix(null)}>Cancelar</button>
               <button className="btn btn-primary" onClick={() => confirmarPix(modalPix)}>✓ Recebi o PIX — Liberar acesso</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Analytics (GTM / GA4 por empresa) */}
+      {modalAnalytics && (
+        <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setModalAnalytics(null) }}>
+          <div className="modal">
+            <div className="modal-title">Analytics — {modalAnalytics.nome}</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 16 }}>
+              Container do Google Tag Manager e Measurement ID do GA4 desta empresa. Deixe em branco para não rastrear.
+            </div>
+            <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label className="label">GTM Container ID</label>
+                <input className="input" value={formAnalytics.gtm_container_id} onChange={e => setFormAnalytics({...formAnalytics, gtm_container_id: e.target.value})} placeholder="GTM-XXXXXXX" />
+              </div>
+              <div>
+                <label className="label">GA4 Measurement ID</label>
+                <input className="input" value={formAnalytics.ga4_measurement_id} onChange={e => setFormAnalytics({...formAnalytics, ga4_measurement_id: e.target.value})} placeholder="G-XXXXXXX" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" onClick={() => setModalAnalytics(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={salvarAnalytics}>Salvar</button>
             </div>
           </div>
         </div>
