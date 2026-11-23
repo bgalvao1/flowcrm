@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
+
+const NF_URL = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/nf-portal'
 
 // ── Paleta Nipponflex ─────────────────────────────────────
 const NF = {
@@ -31,6 +34,7 @@ const lbl = { fontSize: 10, color: NF.text3, display: 'block', marginBottom: 4, 
 // ── Tela de Login ─────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [aba, setAba] = useState('login') // login | cadastro
+  const [tela, setTela] = useState(() => new URLSearchParams(window.location.search).has('reset') ? 'reset' : 'login')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [nome, setNome] = useState('')
@@ -40,54 +44,49 @@ function LoginScreen({ onLogin }) {
   const [sucesso, setSucesso] = useState('')
   const [loading, setLoading] = useState(false)
 
+  async function chamarPortal(corpo) {
+    const res = await fetch(NF_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+    const json = await res.json().catch(() => ({}))
+    return { ok: res.ok, ...json }
+  }
+
   async function handleLogin(e) {
     e.preventDefault()
-    setErro('')
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('*')
-      .ilike('email', email.trim().toLowerCase())
-      .eq('ativo', true)
-      .single()
+    setErro(''); setLoading(true)
+    let r
+    try {
+      r = await chamarPortal({ action: 'login', email: email.trim().toLowerCase(), senha })
+    } catch {
+      setLoading(false); setErro('Erro de conexão. Tente novamente.'); return
+    }
+    if (!r.ok || !r.access_token) { setLoading(false); setErro(r.error || 'E-mail ou senha incorretos.'); return }
+    // sessão autenticada: o banco só devolve os clientes deste distribuidor
+    const { error: sErr } = await supabase.auth.setSession({ access_token: r.access_token, refresh_token: r.refresh_token })
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado ou acesso inativo.'); return }
-    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
-    onLogin(data)
+    if (sErr) { setErro('Não foi possível iniciar a sessão. Tente novamente.'); return }
+    onLogin(r.perfil)
   }
 
   async function handleCadastro(e) {
     e.preventDefault()
     setErro('')
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
-    if (senha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (senha.length < 6) { setErro('Senha deve ter ao menos 6 caracteres.'); return }
     setLoading(true)
-
-    // Verifica se e-mail já existe
-    const { data: existe } = await supabase
-      .from('nipponflex_distribuidores')
-      .select('id')
-      .ilike('email', email.trim().toLowerCase())
-      .single()
-
-    if (existe) {
-      setLoading(false)
-      setErro('Este e-mail já está cadastrado. Faça login.')
-      return
+    let r
+    try {
+      r = await chamarPortal({ action: 'cadastro', nome: nome.trim(), email: email.trim().toLowerCase(), senha, cidade: cidade.trim() })
+    } catch {
+      setLoading(false); setErro('Erro de conexão. Tente novamente.'); return
     }
-
-    const { error } = await supabase.from('nipponflex_distribuidores').insert({
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      senha,
-      cidade: cidade.trim(),
-      ativo: true,
-    })
     setLoading(false)
-    if (error) { setErro('Erro ao cadastrar. Tente novamente.'); return }
-    setSucesso('Cadastro realizado com sucesso! Faça login para continuar.')
-    setAba('login')
-    setNome(''); setCidade(''); setConfirmar('')
+    if (!r.ok) { setErro(r.error || 'Erro ao cadastrar. Tente novamente.'); return }
+    setSucesso('Conta criada! Faça login.')
+    setAba('login'); setNome(''); setCidade(''); setConfirmar('')
   }
 
   const Logo = () => (
@@ -125,16 +124,26 @@ function LoginScreen({ onLogin }) {
           </div>
         )}
 
+        {/* RESET / ESQUECEU SENHA */}
+        {tela === 'reset' && <RedefinirSenha tabela="nipponflex_distribuidores" tema="blue" onConcluido={() => setTela('login')} />}
+        {tela === 'esqueceu' && <EsqueceuSenha tabela="nipponflex_distribuidores" tema="blue" onVoltar={() => setTela('login')} />}
+
         {/* LOGIN */}
-        {aba === 'login' && (
+        {tela === 'login' && aba === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>E-mail</label>
               <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="seu@email.com" style={inp} autoFocus />
             </div>
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 8 }}>
               <label style={lbl}>Senha</label>
               <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={inp} />
+            </div>
+            <div style={{ textAlign: 'right', marginBottom: 16 }}>
+              <button type="button" onClick={() => setTela('esqueceu')}
+                style={{ background: 'none', border: 'none', color: NF.accent, cursor: 'pointer', fontSize: 11, padding: 0 }}>
+                Esqueceu a senha?
+              </button>
             </div>
             {erro && <div style={{ fontSize: 11, color: NF.red, marginBottom: 14, background: 'rgba(232,90,79,0.08)', border: `1px solid rgba(232,90,79,0.2)`, borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
             <button type="submit" disabled={loading}
@@ -260,7 +269,7 @@ function ClienteCard({ c, onDelete, onEdit }) {
 }
 
 // ── Modal de cadastro/edição ──────────────────────────────
-function ModalCliente({ cliente, distribuidorId, onSave, onClose }) {
+function ModalCliente({ cliente, distribuidorId, authUserId, onSave, onClose }) {
   const [form, setForm] = useState(cliente ? { ...cliente } : {
     nome: '', produto: '', data_compra: '', data_troca_refil: '',
     cidade: '', bairro: '', whatsapp: '', entrou_equipe: false, anotacoes: ''
@@ -270,7 +279,11 @@ function ModalCliente({ cliente, distribuidorId, onSave, onClose }) {
   async function salvar() {
     if (!form.nome) return
     setSaving(true)
-    const dados = { ...form, distribuidor_id: distribuidorId, atualizado_em: new Date().toISOString() }
+    const dados = {
+      ...form,
+      distribuidor_id: distribuidorId,
+      atualizado_em: new Date().toISOString()
+    }
     if (cliente) {
       await supabase.from('nipponflex_clientes').update(dados).eq('id', cliente.id)
     } else {
@@ -337,37 +350,42 @@ export default function Nipponflex() {
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('todos') // todos | equipe | refil
   const [stats, setStats] = useState({ total: 0, equipe: 0, refil: 0 })
+  const [accessToken, setAccessToken] = useState(null)
 
-  async function loadClientes(dist) {
+  // Cria cliente Supabase autenticado com o JWT do distribuidor
+  function authedClient(token) {
+    const { createClient } = window.__supabaseLib || {}
+    return supabase // fallback; será substituído abaixo
+  }
+
+  async function loadClientes(dist, token) {
     setLoading(true)
     const { data } = await supabase
       .from('nipponflex_clientes')
       .select('*')
       .eq('distribuidor_id', dist.id)
       .order('nome')
-    const lista = data || []
-    setClientes(lista)
-
+    setClientes(data || [])
     const hoje = new Date()
+    const lista = data || []
     const refil7 = lista.filter(c => {
       if (!c.data_troca_refil) return false
       const d = new Date(c.data_troca_refil + 'T12:00:00')
       return Math.ceil((d - hoje) / (1000 * 60 * 60 * 24)) <= 7
     }).length
-
     setStats({ total: lista.length, equipe: lista.filter(c => c.entrou_equipe).length, refil: refil7 })
     setLoading(false)
   }
 
-  function onLogin(dist) {
+  async function onLogin(dist) {
     setDistribuidor(dist)
-    loadClientes(dist)
+    await loadClientes(dist)
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este cliente? Os dados serão perdidos.')) return
     await supabase.from('nipponflex_clientes').delete().eq('id', id)
-    await loadClientes(distribuidor)
+    await loadClientes(distribuidor, accessToken)
   }
 
   const filtrados = clientes.filter(c => {
@@ -401,7 +419,7 @@ export default function Nipponflex() {
             style={{ background: NF.grad, border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
             + Novo cliente
           </button>
-          <button onClick={() => setDistribuidor(null)} style={{ background: 'none', border: 'none', color: NF.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
+          <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); setDistribuidor(null); setClientes([]) }} style={{ background: 'none', border: 'none', color: NF.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
         </div>
       </div>
 
@@ -476,6 +494,7 @@ export default function Nipponflex() {
         <ModalCliente
           cliente={editando}
           distribuidorId={distribuidor.id}
+          authUserId={distribuidor.auth_user_id || distribuidor.id}
           onSave={() => { setModal(false); setEditando(null); loadClientes(distribuidor) }}
           onClose={() => { setModal(false); setEditando(null) }}
         />

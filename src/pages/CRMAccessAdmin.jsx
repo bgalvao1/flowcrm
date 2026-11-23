@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { toast } from '../lib/toast.js'
 
+const CRIAR_URL = 'https://zsqsmgewvyxbtahqnigk.supabase.co/functions/v1/admin-criar-empresa'
+const PLANO_ILIMITADO = { label: 'Ilimitado', dias: null, valor: 0 }
 const PLANOS = { '1mes': { label: '1 mês', dias: 30, valor: 69.90 }, '3meses': { label: '3 meses', dias: 90, valor: 97.00 } }
 
 export default function CRMAccessAdmin() {
@@ -23,16 +25,23 @@ export default function CRMAccessAdmin() {
 
   async function salvar() {
     if (!form.nome || !form.email || !form.senha) return
+    if (form.senha.length < 6) { toast.error('A senha deve ter ao menos 6 caracteres'); return }
     setSaving(true)
-    const plano = PLANOS[form.plano]
-    const venc = new Date()
-    venc.setDate(venc.getDate() + plano.dias)
-    const { error } = await supabase.from('crm_empresas').insert({
-      ...form, valor: plano.valor, status: 'ativo',
-      vencimento: venc.toISOString().split('T')[0],
-    })
+    try {
+      const { data: sess } = await supabase.auth.getSession()
+      const token = sess?.session?.access_token
+      if (!token) { toast.error('Sessão expirada. Entre novamente.'); setSaving(false); return }
+      const res = await fetch(CRIAR_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(json.error || 'Erro ao salvar'); setSaving(false); return }
+    } catch {
+      toast.error('Erro de conexão. Tente novamente.'); setSaving(false); return
+    }
     setSaving(false)
-    if (error) { toast.error('E-mail já cadastrado ou erro ao salvar'); return }
     toast.success('Empresa adicionada e acesso liberado!')
     setModal(false); setForm({ nome: '', email: '', senha: '', plano: '1mes' })
     await load()
@@ -40,26 +49,29 @@ export default function CRMAccessAdmin() {
 
   async function confirmarPix(empresa) {
     const plano = PLANOS[empresa.plano || '1mes']
+    if (!plano) { toast.error('Plano ilimitado não precisa de renovação'); return }
     const venc = new Date()
     venc.setDate(venc.getDate() + plano.dias)
-    await supabase.from('crm_empresas').update({
+    const { error } = await supabase.from('crm_empresas').update({
       status: 'ativo',
       vencimento: venc.toISOString().split('T')[0],
-      pix_confirmado: true,
     }).eq('id', empresa.id)
+    if (error) { toast.error('Erro ao renovar acesso'); return }
     toast.success(`Acesso de ${empresa.nome} renovado por ${plano.label}!`)
     setModalPix(null)
     await load()
   }
 
   async function bloquear(id, nome) {
-    await supabase.from('crm_empresas').update({ status: 'bloqueado' }).eq('id', id)
+    const { error } = await supabase.from('crm_empresas').update({ status: 'bloqueado' }).eq('id', id)
+    if (error) { toast.error('Erro ao bloquear'); return }
     toast.success(`${nome} bloqueado`)
     await load()
   }
 
   async function alterarPlano(id, plano) {
-    await supabase.from('crm_empresas').update({ plano, valor: PLANOS[plano].valor }).eq('id', id)
+    const { error } = await supabase.from('crm_empresas').update({ plano, valor: PLANOS[plano].valor }).eq('id', id)
+    if (error) { toast.error('Erro ao atualizar plano'); return }
     toast.success('Plano atualizado')
     await load()
   }
@@ -71,7 +83,7 @@ export default function CRMAccessAdmin() {
       <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 className="page-title">Acesso CRM — Empresas</h1>
-          <div className="page-sub">Nova Energia · FBS Consultoria e futuros clientes</div>
+          <div className="page-sub">Empresas clientes do CRM</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a href="/acesso" target="_blank" className="btn btn-ghost" style={{ fontSize: 11 }}>↗ Ver portal</a>
@@ -120,7 +132,7 @@ export default function CRMAccessAdmin() {
             {empresas.map(e => {
               const venc = e.vencimento ? new Date(e.vencimento + 'T23:59:59') : null
               const dias = venc ? Math.ceil((venc - new Date()) / (1000 * 60 * 60 * 24)) : null
-              const vencido = dias !== null && dias < 0
+              const vencido = e.plano !== 'ilimitado' && dias !== null && dias < 0
               return (
                 <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 600 }}>{e.nome}</td>
@@ -130,14 +142,15 @@ export default function CRMAccessAdmin() {
                       style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: 'var(--text2)', cursor: 'pointer' }}>
                       <option value="1mes">1 mês — R$ 69,90</option>
                       <option value="3meses">3 meses — R$ 97,00</option>
+                      {e.plano === 'ilimitado' && <option value="ilimitado">Ilimitado</option>}
                     </select>
                   </td>
                   <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 600, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
                     R$ {Number(e.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
                   <td style={{ padding: '11px 14px', fontSize: 11, color: vencido ? 'var(--red)' : dias !== null && dias <= 7 ? 'var(--amber)' : 'var(--text3)' }}>
-                    {venc ? venc.toLocaleDateString('pt-BR') : '—'}
-                    {dias !== null && <span style={{ marginLeft: 4, fontSize: 9 }}>({vencido ? 'vencido' : `${dias}d`})</span>}
+                    {e.plano === 'ilimitado' ? 'Sem vencimento' : venc ? venc.toLocaleDateString('pt-BR') : '—'}
+                    {e.plano !== 'ilimitado' && dias !== null && <span style={{ marginLeft: 4, fontSize: 9 }}>({vencido ? 'vencido' : `${dias}d`})</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: e.status === 'ativo' ? 'rgba(61,206,140,0.12)' : 'rgba(232,100,91,0.12)', color: e.status === 'ativo' ? 'var(--green)' : 'var(--red)' }}>
@@ -146,9 +159,11 @@ export default function CRMAccessAdmin() {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px', color: 'var(--green)', borderColor: 'rgba(61,206,140,0.3)' }} onClick={() => setModalPix(e)}>
-                        ✓ Confirmar PIX
-                      </button>
+                      {e.plano !== 'ilimitado' && (
+                        <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px', color: 'var(--green)', borderColor: 'rgba(61,206,140,0.3)' }} onClick={() => setModalPix(e)}>
+                          ✓ Confirmar PIX
+                        </button>
+                      )}
                       {e.status === 'ativo' && (
                         <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px', color: 'var(--red)', borderColor: 'rgba(232,100,91,0.3)' }} onClick={() => bloquear(e.id, e.nome)}>
                           Bloquear
@@ -179,7 +194,7 @@ export default function CRMAccessAdmin() {
               </div>
               <div>
                 <label className="label">Senha *</label>
-                <input className="input" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} placeholder="Senha de acesso" />
+                <input className="input" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               </div>
               <div style={{ gridColumn: '1/-1' }}>
                 <label className="label">Plano</label>
@@ -213,13 +228,13 @@ export default function CRMAccessAdmin() {
           <div className="modal">
             <div className="modal-title">Confirmar pagamento PIX</div>
             <div style={{ background: 'var(--gold-08)', border: '1px solid var(--gold-14)', borderRadius: 10, padding: 20, textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>{modalPix.nome} · {PLANOS[modalPix.plano || '1mes'].label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>{modalPix.nome} · {(PLANOS[modalPix.plano || '1mes'] || PLANO_ILIMITADO).label}</div>
               <div className="num" style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent)' }}>
-                R$ {Number(modalPix.valor || PLANOS[modalPix.plano || '1mes'].valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {Number(modalPix.valor || (PLANOS[modalPix.plano || '1mes'] || PLANO_ILIMITADO).valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
             </div>
             <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>
-              Confirme apenas após receber o PIX em <strong style={{ color: 'var(--accent)' }}>bgalvao1@gmail.com</strong>. O acesso será renovado por mais <strong>{PLANOS[modalPix.plano || '1mes'].dias} dias</strong>.
+              Confirme apenas após receber o PIX em <strong style={{ color: 'var(--accent)' }}>bgalvao1@gmail.com</strong>. O acesso será renovado por mais <strong>{(PLANOS[modalPix.plano || '1mes'] || PLANO_ILIMITADO).dias} dias</strong>.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn btn-ghost" onClick={() => setModalPix(null)}>Cancelar</button>

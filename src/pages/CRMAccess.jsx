@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { EsqueceuSenha, RedefinirSenha } from '../lib/passwordReset.jsx'
 
 // ── Paleta Flow ───────────────────────────────────────────
 const C = {
@@ -83,6 +84,7 @@ function TelaBloqueada({ empresa, onLogout }) {
 
 // ── Login ─────────────────────────────────────────────────
 function Login({ onLogin }) {
+  const [tela, setTela] = useState(() => new URLSearchParams(window.location.search).has('reset') ? 'reset' : 'login')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -90,12 +92,46 @@ function Login({ onLogin }) {
 
   async function handleLogin(e) {
     e.preventDefault(); setErro(''); setLoading(true)
-    const { data, error } = await supabase.from('crm_empresas').select('*').ilike('email', email.trim().toLowerCase()).single()
+    // 1) Autentica no Supabase Auth (a senha nunca mais é comparada no navegador)
+    const { data: auth, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha })
+    if (authError || !auth?.user) { setLoading(false); setErro('E-mail ou senha incorretos.'); return }
+    // 2) A empresa vem do token (app_metadata.empresa_id), definido pelo administrador
+    const empresaId = auth.user.app_metadata?.empresa_id
+    if (!empresaId) {
+      await supabase.auth.signOut({ scope: 'local' })
+      setLoading(false); setErro('Esta conta não tem acesso ao portal empresarial.'); return
+    }
+    // 3) Carrega o cadastro da empresa (RLS: só a própria empresa; sem a coluna senha)
+    const { data, error } = await supabase.from('crm_empresas').select('id, nome, email, plano, valor, status, vencimento').eq('id', empresaId).single()
     setLoading(false)
-    if (error || !data) { setErro('E-mail não encontrado.'); return }
-    if (data.senha !== senha) { setErro('Senha incorreta.'); return }
+    if (error || !data) {
+      await supabase.auth.signOut({ scope: 'local' })
+      setErro('Cadastro da empresa não encontrado.'); return
+    }
     onLogin(data)
   }
+
+  if (tela === 'reset') return (
+    <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
+      <div style={{ ...S.card, width: '100%', maxWidth: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', padding: '36px 28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 800 }}>Flow<span style={{ color: C.accent }}>CRM</span></div>
+        </div>
+        <RedefinirSenha tabela="crm_empresas" tema="dark" onConcluido={() => setTela('login')} />
+      </div>
+    </div>
+  )
+
+  if (tela === 'esqueceu') return (
+    <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
+      <div style={{ ...S.card, width: '100%', maxWidth: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', padding: '36px 28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 800 }}>Flow<span style={{ color: C.accent }}>CRM</span></div>
+        </div>
+        <EsqueceuSenha tabela="crm_empresas" tema="dark" onVoltar={() => setTela('login')} />
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif', padding: 16 }}>
@@ -114,9 +150,15 @@ function Login({ onLogin }) {
             <label style={S.lbl}>E-mail</label>
             <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="empresa@email.com" style={S.inp} autoFocus />
           </div>
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8 }}>
             <label style={S.lbl}>Senha</label>
             <input value={senha} onChange={e => setSenha(e.target.value)} type="password" required placeholder="••••••••" style={S.inp} />
+          </div>
+          <div style={{ textAlign: 'right', marginBottom: 16 }}>
+            <button type="button" onClick={() => setTela('esqueceu')}
+              style={{ background: 'none', border: 'none', color: C.accent, cursor: 'pointer', fontSize: 11, padding: 0 }}>
+              Esqueceu a senha?
+            </button>
           </div>
           {erro && <div style={{ fontSize: 11, color: C.red, marginBottom: 14, background: 'rgba(232,100,91,0.08)', border: '1px solid rgba(232,100,91,0.2)', borderRadius: 6, padding: '8px 12px' }}>{erro}</div>}
           <button type="submit" disabled={loading} style={{ ...S.btn, width: '100%', padding: 11, fontSize: 13 }}>
@@ -141,24 +183,24 @@ function Pipeline({ empresaId }) {
   useEffect(() => { load() }, [empresaId])
 
   // Mapeia campos do form (nomes amigáveis) para colunas reais do banco
-  function formParaBanco(f) {
-    return {
-      empresa_id: empresaId,
-      nome: f.nome,
-      empresa: f.empresa,
-      whatsapp: f.whatsapp,
-      email: f.email,
-      cargo: f.cargo,
-      servico: f.servico,
-      valor: parseFloat(f.valor) || 0,
-      etapa: f.etapa,
-      temperatura: f.temperatura,
-      proximo_followup: f.proximo_followup || null,
-      observacao: f.observacao,
-      atualizado_em: new Date().toISOString(),
-    }
+// Mapeia campos do form (nomes amigáveis) para colunas reais do banco
+function formParaBanco(f) {
+  return {
+    empresa_id: empresaId,
+    nome: f.nome,
+    empresa: f.empresa,
+    whatsapp: f.whatsapp,
+    email: f.email,
+    cargo: f.cargo,
+    servico: f.servico,
+    valor: parseFloat(f.valor) || 0,
+    etapa: f.etapa,
+    temperatura: f.temperatura,
+    proximo_followup: f.proximo_followup || null,
+    observacao: f.observacao,
+    atualizado_em: new Date().toISOString(),
   }
-
+}
   // Mapeia linha do banco de volta para o form
   function bancoParaForm(row) {
     return {
@@ -176,31 +218,17 @@ function Pipeline({ empresaId }) {
     }
   }
 
-  // Normaliza lead para exibição no kanban
-  function normalizar(row) {
-    return {
-      ...row,
-      whatsapp: row.whatsapp,
-      email: row.email,
-      cargo: row.cargo,
-      servico: row.servico,
-      valor: row.valor || 0,
-      proximo_followup: row.proximo_followup,
-      observacao: row.observacao,
-    }
-  }
-
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('leads_crm').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
-    setLeads((data || []).map(normalizar))
+    const { data } = await supabase.from('crm_leads').select('*').eq('empresa_id', empresaId).order('criado_em', { ascending: false })
+    setLeads(data || [])
     setLoading(false)
   }
 
   async function salvar() {
     const dados = formParaBanco(form)
-    if (editando) await supabase.from('leads_crm').update(dados).eq('id', editando.id)
-    else await supabase.from('leads_crm').insert(dados)
+    if (editando) await supabase.from('crm_leads').update(dados).eq('id', editando.id)
+    else await supabase.from('crm_leads').insert(dados)
     setModal(false); setEditando(null)
     setForm({ nome: '', empresa: '', whatsapp: '', email: '', cargo: '', servico: '', valor: '', etapa: 'prospeccao', temperatura: 'morno', proximo_followup: '', observacao: '' })
     await load()
@@ -208,13 +236,13 @@ function Pipeline({ empresaId }) {
 
   async function mover(id, etapa) {
     setLeads(ls => ls.map(l => l.id === id ? { ...l, etapa } : l))
-    await supabase.from('leads_crm').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
+    await supabase.from('crm_leads').update({ etapa, atualizado_em: new Date().toISOString() }).eq('id', id)
   }
 
   async function deletar(id) {
     if (!confirm('Excluir este lead?')) return
     setLeads(ls => ls.filter(l => l.id !== id))
-    await supabase.from('leads_crm').delete().eq('id', id)
+    await supabase.from('crm_leads').delete().eq('id', id)
   }
 
   function abrir(lead = null) {
@@ -596,15 +624,20 @@ export default function CRMAccess() {
   function onLogin(emp) {
     // Verifica vencimento
     const venc = emp.vencimento ? new Date(emp.vencimento + 'T23:59:59') : null
-    if (emp.status === 'bloqueado' || (venc && venc < new Date())) {
+    if (emp.status === 'bloqueado' || (emp.plano !== 'ilimitado' && venc && venc < new Date())) {
       setEmpresa({ ...emp, status: 'bloqueado' })
     } else {
       setEmpresa(emp)
     }
   }
 
+  async function sair() {
+    await supabase.auth.signOut({ scope: 'local' })
+    setEmpresa(null)
+  }
+
   if (!empresa) return <Login onLogin={onLogin} />
-  if (empresa.status === 'bloqueado') return <TelaBloqueada empresa={empresa} onLogout={() => setEmpresa(null)} />
+  if (empresa.status === 'bloqueado') return <TelaBloqueada empresa={empresa} onLogout={sair} />
 
   const diasRestantes = empresa.vencimento
     ? Math.ceil((new Date(empresa.vencimento + 'T23:59:59') - new Date()) / (1000 * 60 * 60 * 24))
@@ -633,12 +666,17 @@ export default function CRMAccess() {
               ⚠️ Plano vence em {diasRestantes} dia{diasRestantes !== 1 ? 's' : ''}
             </div>
           )}
-          {diasRestantes !== null && diasRestantes > 10 && (
+          {empresa.plano === 'ilimitado' && (
+            <div style={{ fontSize: 11, color: C.text3 }}>
+              Plano: <span style={{ color: C.accent }}>Ilimitado</span> · sem vencimento
+            </div>
+          )}
+          {empresa.plano !== 'ilimitado' && diasRestantes !== null && diasRestantes > 10 && (
             <div style={{ fontSize: 11, color: C.text3 }}>
               Plano: <span style={{ color: C.accent }}>{empresa.plano === '3meses' ? '3 meses' : '1 mês'}</span> · vence {new Date(empresa.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
             </div>
           )}
-          <button onClick={() => setEmpresa(null)} style={{ background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
+          <button onClick={sair} style={{ background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 12 }}>Sair</button>
         </div>
       </div>
 
